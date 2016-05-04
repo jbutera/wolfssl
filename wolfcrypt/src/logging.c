@@ -229,6 +229,12 @@ void WOLFSSL_TIME(int count)
     int dc_log_printf(char*, ...);
 #endif
 
+#ifdef WOLFSSL_NUCLEUS_V15
+    int DMONSendLine(char*);
+    #define USE_DMON
+#endif
+
+
 static void wolfssl_log(const int logLevel, const char *const logMessage)
 {
     if (log_function)
@@ -261,6 +267,8 @@ static void wolfssl_log(const int logLevel, const char *const logMessage)
         ESP_LOGI("wolfssl", "%s", logMessage);
 #elif defined(WOLFSSL_ZEPHYR)
         printk("%s\n", logMessage);
+#elif defined(USE_DMON)
+        DMONSendLine((char*)logMessage);
 #else
         fprintf(stderr, "%s\n", logMessage);
 #endif

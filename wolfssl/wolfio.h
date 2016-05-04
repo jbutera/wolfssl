@@ -84,6 +84,9 @@
     #elif defined(WOLFSSL_VXWORKS)
         #include <sockLib.h>
         #include <errno.h>
+    #elif defined(WOLFSSL_NUCLEUS_V15)
+        #include <plus/nucleus.h>   /* Nucleus Plus definitions */
+        #include <net/inc/nu_net.h>
     #elif defined(WOLFSSL_NUCLEUS_1_2)
         #include <externs.h>
         #include <errno.h>
@@ -132,6 +135,8 @@
         #elif defined(EBSNET)
             #include "rtipapi.h"  /* errno */
             #include "socket.h"
+        #elif defined(WOLFSSL_NUCLEUS)
+            #include "networking/nu_networking.h"
         #elif !defined(DEVKITPRO) && !defined(WOLFSSL_PICOTCP) \
                 && !defined(WOLFSSL_CONTIKI) && !defined(WOLFSSL_WICED)
             #include <sys/socket.h>
@@ -230,6 +235,30 @@
      #define SOCKET_EPIPE       EPIPE
      #define SOCKET_ECONNREFUSED SOCKET_ERROR
      #define SOCKET_ECONNABORTED SOCKET_ERROR
+#elif defined(WOLFSSL_NUCLEUS)
+    #ifdef WOLFSSL_NUCLEUS_V15
+        #define SOCKET_EWOULDBLOCK  NU_WOULD_BLOCK
+        #define SOCKET_EAGAIN       NU_WOULD_BLOCK
+        #define SOCKET_ECONNRESET   NU_NOT_CONNECTED
+        #define SOCKET_EINTR        NU_SOCKET_CLOSED
+        #define SOCKET_EPIPE        NU_SOCKET_CLOSED
+        #define SOCKET_ECONNREFUSED NU_CONNECTION_REFUSED
+        #define SOCKET_ECONNABORTED NU_NOT_CONNECTED
+    #else
+        #define SOCKET_EWOULDBLOCK  NU_WOULD_BLOCK
+        #define SOCKET_EAGAIN       NU_NO_DATA
+        #define SOCKET_ECONNRESET   NU_RESET
+        #define SOCKET_EINTR        0
+        #define SOCKET_EPIPE        0
+        #define SOCKET_ECONNREFUSED NU_CONNECTION_REFUSED
+        #define SOCKET_ECONNABORTED NU_CONNECTION_REFUSED
+    #endif
+    #define CLOSE_FUNCTION(s)   NU_Close_Socket(s)
+
+    /* Map the different socket address structures to Nucleus address structure. */
+    /* User must use struct addr_struct to set and get peer address. */
+    #define sockaddr_storage    addr_struct
+    #define sockaddr            addr_struct
 #else
     #define SOCKET_EWOULDBLOCK EWOULDBLOCK
     #define SOCKET_EAGAIN      EAGAIN
@@ -258,6 +287,17 @@
 #elif defined(WOLFSSL_VXWORKS)
     #define SEND_FUNCTION send
     #define RECV_FUNCTION recv
+#elif defined(WOLFSSL_NUCLEUS)
+    #define SEND_FUNCTION NU_Send
+    #define RECV_FUNCTION NU_Recv
+
+    #ifdef WOLFSSL_DTLS
+        static int nucleus_select(int sd, word32 timeout);
+        #define SELECT_FUNCTION     nucleus_select
+    #endif
+
+   /* Variable to hold last Nucleus networking error number */
+   static int Nucleus_Net_Errno;
 #elif defined(WOLFSSL_NUCLEUS_1_2)
     #define SEND_FUNCTION NU_Send
     #define RECV_FUNCTION NU_Recv
@@ -286,6 +326,8 @@
     #ifndef XSOCKLENT
         #ifdef USE_WINDOWS_API
             #define XSOCKLENT int
+        #elif defined(WOLFSSL_NUCLEUS)
+            #define XSOCKLENT word16
         #else
             #define XSOCKLENT socklen_t
         #endif

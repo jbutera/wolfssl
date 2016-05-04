@@ -5344,6 +5344,13 @@ exit_ed_verify:
         return (double)k_uptime_get() / 1000;
     }
 
+#elif defined(WOLFSSL_NUCLEUS)
+
+	double current_time(int reset)
+    {
+		return ((double) NU_Retrieve_Clock() /TICKS_PER_SECOND);
+    }
+
 #else
 
     #include <sys/time.h>

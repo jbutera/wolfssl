@@ -83,6 +83,28 @@ static WC_INLINE int TranslateReturnCode(int old, int sd)
         if (errno == RTCSERR_TCP_TIMED_OUT)
             errno = SOCKET_EAGAIN;
     }
+#elif defined(WOLFSSL_NUCLEUS)
+    #ifdef WOLFSSL_NUCLEUS_V15
+        Nucleus_Net_Errno = old;
+    #else
+        if (old < 0) {
+            if (old == NU_NOT_CONNECTED) {
+                /* Set received to 0 to show connection closed */
+                old = 0;
+            }
+            else {
+                /* Set error number */
+                Nucleus_Net_Errno = old;
+
+                /* Set received to -1 to indicate error to caller */
+                old = -1;
+            }
+        }
+        else {
+            /* Clear error number */
+            Nucleus_Net_Errno = 0;
+        }
+    #endif
 #endif
 
     return old;
@@ -94,6 +116,8 @@ static WC_INLINE int wolfSSL_LastError(void)
     return WSAGetLastError();
 #elif defined(EBSNET)
     return xn_getlasterror();
+#elif defined(WOLFSSL_NUCLEUS)
+    return Nucleus_Net_Errno;
 #else
     return errno;
 #endif
@@ -278,8 +302,13 @@ int EmbedSend(WOLFSSL* ssl, char *buf, int sz, void *ctx)
 
 #include <wolfssl/wolfcrypt/sha.h>
 
-#define SENDTO_FUNCTION sendto
-#define RECVFROM_FUNCTION recvfrom
+#if defined(WOLFSSL_NUCLEUS)
+    #define SENDTO_FUNCTION     NU_Send_To
+    #define RECVFROM_FUNCTION   NU_Recv_From
+#else
+    #define SENDTO_FUNCTION     sendto
+    #define RECVFROM_FUNCTION   recvfrom
+#endif
 
 
 /* The receive embedded callback
@@ -743,6 +772,103 @@ static int wolfIO_Word16ToString(char* d, word16 number)
     return i;
 }
 
+#if defined(WOLFSSL_NUCLEUS)
+
+int wolfIO_TcpConnect(SOCKET_T* sockfd, const char* ip, word16 port, int to_sec)
+{
+    STATUS status;
+    struct addr_struct servaddr;
+    NU_HOSTENT *hentry;
+    INT family;
+    CHAR test_ip[MAX_ADDRESS_SIZE] = {0};
+
+    XMEMSET(&servaddr, 0, sizeof(struct addr_struct));
+
+    /* Determine the IP address of the foreign server to which to
+     * make the connection.
+     */
+#if (INCLUDE_IPV6 == NU_TRUE)
+    /* Search for a ':' to determine if the address is IPv4 or IPv6. */
+    if (XMEMCHR(ip, (int)':', MAX_ADDRESS_SIZE) != NU_NULL) {
+        family = NU_FAMILY_IP6;
+    }
+    else
+#endif
+    {
+#if (INCLUDE_IPV4 == NU_FALSE)
+        /* An IPv6 address was not passed into the routine. */
+        return -1;
+#else
+        family = NU_FAMILY_IP;
+#endif
+    }
+
+    /* Convert the string to an array. */
+    status = NU_Inet_PTON(family, (char*)ip, test_ip);
+
+    /* If the URI contains an IP address, copy it into the server structure. */
+    if (status == NU_SUCCESS) {
+        XMEMCPY(servaddr.id.is_ip_addrs, test_ip, MAX_ADDRESS_SIZE);
+    }
+
+    /* If the application did not pass in an IP address, resolve the host
+     * name into a valid IP address.
+     */
+    else {
+        /* If IPv6 is enabled, default to IPv6.  If the host does not have
+         * an IPv6 address, an IPv4-mapped IPv6 address will be returned that
+         * can be used as an IPv6 address.
+         */
+#if (INCLUDE_IPV6 == NU_TRUE)
+        family = NU_FAMILY_IP6;
+#else
+        family = NU_FAMILY_IP;
+#endif
+
+        /* Try getting host info by name */
+        hentry = NU_Get_IP_Node_By_Name((char*)ip, family, DNS_V4MAPPED, &status);
+        if (hentry) {
+            /* Copy the hentry data into the server structure */
+            XMEMCPY(servaddr.id.is_ip_addrs, *hentry->h_addr_list, hentry->h_length);
+            family = hentry->h_addrtype;
+
+            /* Free the memory associated with the host entry returned */
+            NU_Free_Host_Entry(hentry);
+        }
+
+        /* If the host name could not be resolved, return an error. */
+        else {
+            return -1;
+        }
+    }
+
+    /* Set the family field. */
+    servaddr.family = family;
+
+    /* Set the port field. */
+    servaddr.port = port;
+
+    status = NU_Socket(family, NU_TYPE_STREAM, NU_NONE);
+    if (status >= 0) {
+        /* Assign socket */
+        *sockfd = status;
+    }
+    else {
+        WOLFSSL_MSG("bad socket fd, out of fds?");
+        return(-1);
+    }
+
+    status = NU_Connect((INT)*sockfd, &servaddr, 0);
+    if (status != *sockfd) {
+        WOLFSSL_MSG("OCSP responder tcp connect failed");
+        return -1;
+    }
+
+    return 0;
+}
+
+#else
+
 int wolfIO_TcpConnect(SOCKET_T* sockfd, const char* ip, word16 port, int to_sec)
 {
 #ifdef HAVE_SOCKADDR
@@ -846,6 +972,8 @@ int wolfIO_TcpConnect(SOCKET_T* sockfd, const char* ip, word16 port, int to_sec)
     return -1;
 #endif /* HAVE_SOCKADDR */
 }
+
+#endif /* WOLFSSL_NUCLEUS */
 
 #ifndef HTTP_SCRATCH_BUFFER_SIZE
     #define HTTP_SCRATCH_BUFFER_SIZE 512
@@ -2200,5 +2328,26 @@ int uIPGenerateCookie(WOLFSSL* ssl, byte *buf, int sz, void *_ctx)
 }
 
 #endif /* WOLFSSL_UIP */
+
+#if defined(WOLFSSL_NUCLEUS)
+
+    #ifdef WOLFSSL_DTLS
+        /* This function provides a "select" implementation. This is added to
+        *      map the SO_RCVTIMEO functionality required for wolfSSL. */
+        static int nucleus_select(int sd, word32 timeout)
+        {
+            FD_SET readfs;
+
+            /* Initialize fs data for this socket. */
+            NU_FD_Init(&readfs);
+            NU_FD_Set(sd, &readfs);
+
+            /* Wait for data on this socket. */
+            return NU_Select((sd + 1), &readfs, NU_NULL, NU_NULL,
+                               (timeout * NU_TICKS_PER_SECOND));
+        }
+    #endif /* WOLFSSL_DTLS */
+
+#endif /* WOLFSSL_NUCLEUS */
 
 #endif /* WOLFCRYPT_ONLY */

@@ -114,6 +114,21 @@
     #ifndef SINGLE_THREADED
         #include <kernel.h>
     #endif
+#elif defined(WOLFSSL_NUCLEUS)
+    #ifndef SINGLE_THREADED
+        #ifdef WOLFSSL_NUCLEUS_V15
+			#include <plus/nucleus.h>   /* Nucleus Plus definitions */
+            /* Workaround for R1-R4 conflict in sha.c and sha512.c from nucleus */
+            #undef R1
+            #undef R2
+            #undef R3
+            #undef R4
+			#include <net/inc/nu_net.h>
+        #else
+            #include <nucleus.h>
+            #include <kernel/nu_kernel.h>
+        #endif
+    #endif
 #else
     #ifndef SINGLE_THREADED
         #define WOLFSSL_PTHREADS
@@ -187,14 +202,8 @@
         typedef osMutexId_t wolfSSL_Mutex;
     #elif defined(WOLFSSL_TIRTOS)
         typedef ti_sysbios_knl_Semaphore_Handle wolfSSL_Mutex;
-    #elif defined(WOLFSSL_FROSTED)
-        typedef mutex_t * wolfSSL_Mutex;
-    #elif defined(INTIME_RTOS)
-        typedef RTHANDLE wolfSSL_Mutex;
-    #elif defined(WOLFSSL_NUCLEUS_1_2)
+    #elif defined(WOLFSSL_NUCLEUS)
         typedef NU_SEMAPHORE wolfSSL_Mutex;
-    #elif defined(WOLFSSL_ZEPHYR)
-        typedef struct k_mutex wolfSSL_Mutex;
     #else
         #error Need a mutex type in multithreaded mode
     #endif /* USE_WINDOWS_API */
@@ -304,56 +313,29 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define XFCLOSE    fs_fclose
     #define XSEEK_END  FS_SEEK_END
     #define XBADFILE   NULL
-    #define XFGETS(b,s,f) -2 /* Not ported yet */
-#elif defined(WOLFSSL_NUCLEUS_1_2)
-    #include "fal/inc/fal.h"
-    #define XFILE      FILE*
-    #define XFOPEN     fopen
-    #define XFSEEK     fseek
-    #define XFTELL     ftell
-    #define XREWIND    rewind
-    #define XFREAD     fread
-    #define XFWRITE    fwrite
-    #define XFCLOSE    fclose
+#elif defined(WOLFSSL_NUCLEUS_V15)
+	#include <file/pcdisk.h>
+	STATUS nu_open(CHAR *name, UINT16 flag, UINT16 mode);
+    #define XFILE      INT
+    #define XFOPEN(x, y) nu_open((CHAR*)x, PO_RDONLY, PS_IREAD)
+    #define XFSEEK     NU_Seek
+    #define XFTELL(x)  NU_Seek(x,0,PSEEK_CUR)
+    #define XREWIND(x) NU_Seek(x,0,PSEEK_SET)
+    #define XFREAD(w,x,y,z) NU_Read(z, (CHAR*)w, x)
+    #define XFCLOSE    NU_Close
+    #define XSEEK_END  PSEEK_END
+    #define XBADFILE   -1
+#elif defined(WOLFSSL_NUCLEUS)
+    #include "storage/nu_storage.h"
+    #define XFILE      INT
+    #define XFOPEN(x, y) NU_Open((CHAR*)x, (PO_TEXT|PO_RDONLY), PS_IREAD)
+    #define XFSEEK     NU_Seek
+    #define XFTELL(x)  NU_Seek(x,0,PSEEK_CUR)
+    #define XREWIND(x) NU_Seek(x,0,PSEEK_SET)
+    #define XFREAD(w,x,y,z) NU_Read(z, (CHAR*)w, x)
+    #define XFCLOSE    NU_Close
     #define XSEEK_END  PSEEK_END
     #define XBADFILE   NULL
-#elif defined(WOLFSSL_APACHE_MYNEWT)
-    #include <fs/fs.h>
-    #define XFILE  struct fs_file*
-
-    #define XFOPEN     mynewt_fopen
-    #define XFSEEK     mynewt_fseek
-    #define XFTELL     mynewt_ftell
-    #define XREWIND    mynewt_rewind
-    #define XFREAD     mynewt_fread
-    #define XFWRITE    mynewt_fwrite
-    #define XFCLOSE    mynewt_fclose
-    #define XSEEK_END  2
-    #define XBADFILE   NULL
-    #define XFGETS(b,s,f) -2 /* Not ported yet */
-#elif defined(WOLFSSL_ZEPHYR)
-    #include <fs.h>
-
-    #define XFILE      struct fs_file_t*
-    #define STAT       struct fs_dirent
-
-    XFILE z_fs_open(const char* filename, const char* perm);
-    int z_fs_close(XFILE file);
-
-    #define XFOPEN              z_fs_open
-    #define XFCLOSE             z_fs_close
-    #define XFSEEK              fs_seek
-    #define XFTELL              fs_tell
-    #define XFREWIND            fs_rewind
-    #define XREWIND(F)          fs_seek(F, 0, FS_SEEK_SET)
-    #define XFREAD(P,S,N,F)     fs_read(F, P, S*N)
-    #define XFWRITE(P,S,N,F)    fs_write(F, P, S*N)
-    #define XSEEK_END           FS_SEEK_END
-    #define XBADFILE            NULL
-    #define XFGETS(b,s,f)       -2 /* Not ported yet */
-
-#elif defined(WOLFSSL_USER_FILESYSTEM)
-    /* To be defined in user_settings.h */
 #else
     /* stdio, default case */
     #include <stdio.h>

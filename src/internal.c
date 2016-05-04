@@ -6509,6 +6509,51 @@ ProtocolVersion MakeDTLSv1_2(void)
 #else
     /* Posix style time */
     #ifndef USER_TIME
+
+#elif defined(WOLFSSL_NUCLEUS)
+
+    #include <nucleus.h>
+	#ifdef WOLFSSL_NUCLEUS_V15
+	    word32 LowResTimer(void)
+	    {
+	        return ((word32)NU_Retrieve_Clock()/OS_TICKS_PER_SECOND);
+	    }
+    #else
+        #include <kernel/nu_kernel.h>
+
+        word32 LowResTimer(void)
+        {
+            return ((word32)NU_Retrieve_Clock()/NU_PLUS_TICKS_PER_SEC);
+        }
+	#endif
+			
+#elif defined(USER_TICKS)
+#if 0
+    word32 LowResTimer(void)
+    {
+        /*
+        write your own clock tick function if don't want time(0)
+        needs second accuracy but doesn't have to correlated to EPOCH
+        */
+    }
+#endif
+
+#elif defined(TIME_OVERRIDES)
+
+    /* use same asn time overrides unless user wants tick override above */
+
+    #ifndef HAVE_TIME_T_TYPE
+        typedef long time_t;
+    #endif
+    extern time_t XTIME(time_t * timer);
+
+    word32 LowResTimer(void)
+    {
+        return (word32) XTIME(0);
+    }
+
+#else /* !USE_WINDOWS_API && !HAVE_RTP_SYS && !MICRIUM && !USER_TICKS */
+
     #include <time.h>
     #endif
 

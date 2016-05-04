@@ -1418,7 +1418,7 @@ int wolfSSL_CryptHwMutexUnLock(void) {
         osMutexRelease (*m);
         return 0;
     }
-    
+
 #elif defined(WOLFSSL_CMSIS_RTOSv2)
     int wc_InitMutex(wolfSSL_Mutex *m)
     {
@@ -1627,6 +1627,105 @@ int wolfSSL_CryptHwMutexUnLock(void) {
 
         return 0;
     }
+
+#elif defined(WOLFSSL_NUCLEUS)
+
+    int InitMutex(wolfSSL_Mutex* m)
+    {
+        int ret = BAD_MUTEX_E;
+        if (NU_Create_Semaphore(m, "wolfSSL", 1, NU_PRIORITY_INHERIT) == 0) {
+            ret = 0;
+        }
+        return ret;
+    }
+
+    int FreeMutex(wolfSSL_Mutex* m)
+    {
+        int ret = BAD_MUTEX_E;
+        if (NU_Delete_Semaphore(m) == 0) {
+            ret = 0;
+        }
+        return ret;
+    }
+
+    int LockMutex(wolfSSL_Mutex* m)
+    {
+        int ret = BAD_MUTEX_E;
+        if (NU_Obtain_Semaphore(m, NU_SUSPEND) == 0) {
+            ret = 0;
+        }
+        return ret;
+    }
+
+    int UnLockMutex(wolfSSL_Mutex* m)
+    {
+        int ret = BAD_MUTEX_E;
+        if (NU_Release_Semaphore(m) == 0) {
+            ret = 0;
+        }
+        return ret;
+    }
+
+    #ifdef XMALLOC_USER
+        /****  Custom Nucleus malloc/free ***/
+        #ifdef WOLFSSL_NUCLEUS_V15
+            int nu_minit(size_t poolsz)
+            {
+                return NU_SUCCESS;
+            }
+
+            extern NU_MEMORY_POOL System_Memory; /* system memory pool */
+
+            void* nu_malloc(size_t sz)
+            {
+                STATUS ercd;
+                void *p = NULL;
+                ercd = NU_Allocate_Memory(&System_Memory, &p, sz, NU_NO_SUSPEND);
+                if (ercd == NU_SUCCESS) {
+                    return p;
+                }
+                return NULL;
+            }
+
+            void* nu_realloc(void *p, size_t sz)
+            {
+                STATUS ercd;
+                void *newp;
+
+                if(p) {
+                    ercd = NU_Allocate_Memory(&System_Memory, &newp, sz,
+                                                                NU_NO_SUSPEND);
+                    if (ercd == NU_SUCCESS) {
+                        XMEMCPY(newp, p, sz);
+                        ercd = NU_Deallocate_Memory(p);
+                        if (ercd == NU_SUCCESS) {
+                            return newp;
+                        }
+                    }
+                }
+                return NULL;
+            }
+
+            void nu_free(void *p)
+            {
+                if (p) {
+                    NU_Deallocate_Memory(p);
+                }
+            }
+        #endif /* WOLFSSL_NUCLEUS_V15 */
+    #endif /* XMALLOC_USER */
+
+    #ifndef NO_FILESYSTEM
+        STATUS nu_open(CHAR *name, UINT16 flag, UINT16 mode)
+        {
+            STATUS retv;
+            retv =  NU_Open(name, flag, mode);
+            if (retv < 0) {
+                return XBADFILE;
+            }
+            return retv;
+        }
+    #endif /* NO_FILESYSTEM */
 
 #else
     #warning No mutex handling defined

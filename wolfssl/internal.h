@@ -130,6 +130,13 @@
     #ifndef SINGLE_THREADED
         #include "tx_api.h"
     #endif
+#elif defined(WOLFSSL_NUCLEUS)
+    #ifndef SINGLE_THREADED
+        #include <nucleus.h>
+        #ifndef WOLFSSL_NUCLEUS_V15
+        	#include <kernel/nu_kernel.h>
+        #endif
+    #endif
 
 #elif defined(WOLFSSL_DEOS)
     /* do nothing, just don't pick Unix */

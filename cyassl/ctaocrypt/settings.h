@@ -97,6 +97,12 @@
 /* Uncomment next line if building for PicoTCP demo bundle */
 /* #define CYASSL_PICOTCP_DEMO */
 
+/* Uncomment next line if using Nucleus */
+/* #define WOLFSSL_NUCLEUS */
+
+/* Uncomment next line if using Nucleus v1.5 */
+/* #define WOLFSSL_NUCLEUS_V15 */
+
 #include <cyassl/ctaocrypt/visibility.h>
 
 #ifdef IPHONE
@@ -663,6 +669,85 @@
     #endif
 #endif /* CYASSL_QL */
 
+#ifdef WOLFSSL_NUCLEUS
+    /* Nucleus Version */
+    /* #undef  WOLFSSL_NUCLEUS_V15 */
+    /* #define WOLFSSL_NUCLEUS_V15 */
+
+    #ifdef WOLFSSL_NUCLEUS_V15
+        #include <plus/nucleus.h>   /* Nucleus PLUS definitions */
+        #include <net/inc/nu_net.h>
+    #else
+        #include <nucleus.h>
+        #include <os/networking/ssl/lite/cyassl_nucleus_defs.h>
+        #if defined(CFG_NU_OS_SVCS_POSIX_ENABLE)
+            #include <services/dirent.h>
+            #define HAVE_DIRENT_H
+        #endif
+    #endif
+
+    #undef SIZEOF_LONG
+    #define SIZEOF_LONG 4
+    #undef SIZEOF_LONG_LONG
+    #define SIZEOF_LONG_LONG 8
+
+    #ifdef WOLFSSL_NUCLEUS_V15
+        #define LITTLE_ENDIAN_ORDER
+    #else
+        #if CFG_NU_OS_KERN_PLUS_SUPPLEMENT_STATIC_TEST
+            #define NO_INLINE
+        #endif
+        #if (ESAL_PR_ENDIANESS == ESAL_BIG_ENDIAN)
+            #define BIG_ENDIAN_ORDER
+        #else
+            #undef  BIG_ENDIAN_ORDER
+            #define LITTLE_ENDIAN_ORDER
+        #endif
+        #define NO_WOLFSSL_DIR
+        #define OPENSSL_EXTRA
+    #endif
+
+    /* Workaround for R1-R4 conflict in sha.c and sha512.c from nucleus */
+    #undef R1
+    #undef R2
+    #undef R3
+    #undef R4
+
+    /* Only make a call to gettimeofday() if either the current toolchain
+     * doesn't belong to the following toolchain set (which don't have implementation)
+     * Or posix is enabled. In this case, call will either be made to the
+     * implementation in the toolchain's or posix's implementation of gettimeofday().
+     * __CC_ARM check for ARM_RVCT and ARMV7_RVCT_M
+     * _TMS320C6X check for C6000 TI
+     * __RENESAS__ check for RENESAS */
+                                          
+    #ifdef WOLFSSL_NUCLEUS_V15	
+    	#define NO_WOLFSSL_DIR
+        #define NO_WRITEV
+        #define NO_DEV_RANDOM
+        #define USE_CERT_BUFFERS_2048
+        #define NO_ERROR_STRINGS
+    	#define XMALLOC_USER
+
+        extern int nu_minit(size_t poolsz);
+    	extern void *nu_malloc(size_t sz);
+    	extern void *nu_realloc(void *p, size_t sz);
+    	extern void nu_free(void *p);
+
+    	#define XMALLOC(sz, heap, type)     nu_malloc(sz)
+    	#define XREALLOC(p, sz, heap, type) nu_realloc(p, sz)
+    	#define XFREE(p, heap, type)        nu_free(p)
+    	#define NU_PRIORITY_INHERIT NU_PRIORITY
+    #else
+        #if (   !defined(__CC_ARM) && \
+            !defined(_TMS320C6X) && \
+            !defined(__RENESAS__) \
+        ) || defined(CFG_NU_OS_SVCS_POSIX_ENABLE)
+            #define WOLFSSL_NUCLEUS_USE_GETTIMEOFDAY
+    	    #include <sys/time.h>
+    	#endif	
+    #endif
+#endif /* WOLFSSL_NUCLEUS */
 
 #if !defined(XMALLOC_USER) && !defined(MICRIUM_MALLOC) && \
     !defined(CYASSL_LEANPSK) && !defined(NO_CYASSL_MEMORY)

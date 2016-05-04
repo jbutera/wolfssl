@@ -39,8 +39,9 @@
  */
 
 #ifdef NO_INLINE
+    #undef STATIC
     #define STATIC
-#else
+#elif !defined(STATIC)
     #define STATIC static
 #endif
 

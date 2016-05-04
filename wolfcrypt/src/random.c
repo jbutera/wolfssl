@@ -1997,6 +1997,23 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         return (err_code == NRF_SUCCESS) ? 0 : -1;
     }
 
+#elif defined(WOLFSSL_NUCLEUS)
+    #ifdef WOLFSSL_NUCLEUS_V15
+        #include <net/inc/nu_net.h>
+    #else
+        #include <networking/nu_networking.h>
+    #endif
+
+    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+    {
+        int i;
+        for (i = 0; i < sz; i++) {
+            output[i] = (byte)UTL_Rand();
+        }
+
+        return 0;
+    }
+
 #elif defined(HAVE_WNR)
 
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
