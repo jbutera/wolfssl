@@ -83,6 +83,9 @@ int InitRsaKey(RsaKey* key, void* heap)
 #endif
 
     key->type = -1;  /* haven't decided yet */
+#ifdef CYASSL_ATOP_FEATURES_NONCRT
+    key->haveCRT = 1; /* normally use CRT */
+#endif /* CYASSL_ATOP_FEATURES_NONCRT */
     key->heap = heap;
 
 /* TomsFastMath doesn't use memory allocation */
@@ -220,6 +223,16 @@ static int RsaFunction(const byte* in, word32 inLen, byte* out, word32* outLen,
             if (mp_exptmod(&tmp, &key->d, &key->n, &tmp) != MP_OKAY)
                 ERROR_OUT(MP_EXPTMOD_E);
         #else
+        #ifdef CYASSL_ATOP_FEATURES_NONCRT
+            if (!key->haveCRT) {
+                // if the CRT representation of the private key is not available
+                if (mp_exptmod(&tmp, &key->d, &key->n, &tmp) != MP_OKAY) {
+                    ERROR_OUT(MP_EXPTMOD_E);
+                }
+            }
+            else
+        #endif /* CYASSL_ATOP_FEATURES_NONCRT */
+        {
             #define INNER_ERROR_OUT(x) { ret = x; goto inner_done; }
 
             mp_int tmpa, tmpb;
@@ -259,7 +272,7 @@ static int RsaFunction(const byte* in, word32 inLen, byte* out, word32* outLen,
             mp_clear(&tmpb);
 
             if (ret != 0) return ret;
-
+        }
         #endif   /* RSA_LOW_MEM */
     }
     else if (type == RSA_PUBLIC_ENCRYPT || type == RSA_PUBLIC_DECRYPT) {

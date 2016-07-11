@@ -101,6 +101,79 @@
 
 #include <cyassl/ctaocrypt/visibility.h>
 
+#ifdef ATOP
+  #define SIZEOF_LONG 4
+  #define SIZEOF_LONG_LONG 8
+
+  #define NO_WRITEV
+
+  // custom socket implementation
+//  #define CYASSL_USER_IO
+
+  // no filesystem for now
+  // TODO: implement FS porting layer in src/ssl.c
+#define NO_FILESYSTEM
+  // disables some checks on paths that use posix dir calls.
+  #define NO_CYASSL_DIR
+
+  #define NO_DEV_RANDOM
+
+  // fast math, faster and no realloc
+  // TODO disadvantage, large stack usage
+  #define USE_FAST_MATH // SBT See TLMT5677
+  #define TFM_TIMING_RESISTANT // SBT See TLMT5677
+
+  // no posix time
+  #define USER_TIME
+  #define USER_TICKS
+
+  // TODO logging callback
+
+  // crypto features
+  #define CYASSL_MD2
+  #define CYASSL_SHA384
+  #define CYASSL_SHA512
+  #define HAVE_AESCCM
+  #define HAVE_AESGCM
+  #define HAVE_ECC
+  //#define HAVE_OCSP
+  #define HAVE_HKDF
+  #define CYASSL_RIPEMD
+  #define HAVE_CAMELLIA
+//  #define CYASSL_CERT_GEN
+  #define CYASSL_KEY_GEN
+  //#define CYASSL_DTLS
+//  #define NO_CYASSL_SERVER
+//  #define HAVE_CRL
+//  #define NO_CRL_FILESYSTEM
+  // needed to force alignment in rabbit algorithm
+  #define XSTREAM_ALIGN
+
+  // enable callbacks for customizing the crypto operations
+  #define ATOMIC_USER
+  #define HAVE_PK_CALLBACKS
+
+  // extra features needed for wolf
+  // Changed by RME compared to original integration: removed OPENSSL_EXTRA, since no need for OPENSSL compatibilty
+  // added KEEP_PEER_CERT instead since function CyaSSL_get_peer_certificate is compiled otherwise (and we use it on ATOP) 
+  // added RSA_DECODE_EXTRA 
+  // added ECC_DECODE_EXTRA
+//  #define OPENSSL_EXTRA
+  #define KEEP_PEER_CERT
+  #define RSA_DECODE_EXTRA
+  #define ECC_DECODE_EXTRA
+  #define PERSIST_CERT_CACHE
+  #define PERSIST_SESSION_CACHE
+  #define SESSION_CERTS
+
+  #define XMALLOC_USER
+
+  // TLS extensions
+  #define HAVE_TLS_EXTENSIONS
+  #define HAVE_SNI
+  #define HAVE_SECURE_RENEGOTIATION
+#endif
+
 #ifdef IPHONE
     #define SIZEOF_LONG_LONG 8
 #endif

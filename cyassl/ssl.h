@@ -29,7 +29,9 @@
 /* for users not using preprocessor flags*/
 #include <cyassl/ctaocrypt/settings.h>
 #include <cyassl/version.h>
-
+#if (defined (CYASSL_ATOP_FEATURES_TIMEOUT) || defined(CYASSL_ATOP_PORTING_CLIENT_AUTH))
+#include <stdint.h>
+#endif
 
 #ifndef NO_FILESYSTEM
     #ifdef FREESCALE_MQX
@@ -238,9 +240,15 @@ CYASSL_API int  CyaSSL_get_ciphers(char*, int);
 CYASSL_API int  CyaSSL_get_fd(const CYASSL*);
 CYASSL_API void CyaSSL_set_using_nonblock(CYASSL*, int);
 CYASSL_API int  CyaSSL_get_using_nonblock(CYASSL*);
+#ifdef CYASSL_ATOP_FEATURES_TIMEOUT
+CYASSL_API int  CyaSSL_connectX(CYASSL* ssl, uint32_t);
+#endif
 CYASSL_API int  CyaSSL_connect(CYASSL*);     /* please see note at top of README
                                              if you get an error from connect */
 CYASSL_API int  CyaSSL_write(CYASSL*, const void*, int);
+#ifdef CYASSL_ATOP_FEATURES_TIMEOUT
+CYASSL_API int  CyaSSL_readX(CYASSL*, void*, int, uint32_t );
+#endif
 CYASSL_API int  CyaSSL_read(CYASSL*, void*, int);
 CYASSL_API int  CyaSSL_peek(CYASSL*, void*, int);
 CYASSL_API int  CyaSSL_accept(CYASSL*);
@@ -935,7 +943,11 @@ CYASSL_API int CyaSSL_CTX_set_group_messages(CYASSL_CTX*);
 CYASSL_API int CyaSSL_set_group_messages(CYASSL*);
 
 /* I/O callbacks */
+#ifdef CYASSL_ATOP_FEATURES_TIMEOUT
+typedef int (*CallbackIORecv)(CYASSL *ssl, char *buf, int sz, uint32_t timeout, void *ctx);
+#else
 typedef int (*CallbackIORecv)(CYASSL *ssl, char *buf, int sz, void *ctx);
+#endif
 typedef int (*CallbackIOSend)(CYASSL *ssl, char *buf, int sz, void *ctx);
 
 #ifdef HAVE_FUZZER
@@ -968,7 +980,12 @@ CYASSL_API void CyaSSL_SetIOWriteFlags(CYASSL* ssl, int flags);
 
 #ifndef CYASSL_USER_IO
     /* default IO callbacks */
+
+  #ifdef CYASSL_ATOP_FEATURES_TIMEOUT
+    CYASSL_API int EmbedReceive(CYASSL* ssl, char* buf, int sz, uint32_t timeout, void *ctx);
+  #else
     CYASSL_API int EmbedReceive(CYASSL* ssl, char* buf, int sz, void* ctx);
+  #endif
     CYASSL_API int EmbedSend(CYASSL* ssl, char* buf, int sz, void* ctx);
 
     #ifdef HAVE_OCSP
@@ -1126,6 +1143,18 @@ CYASSL_API void  CyaSSL_CTX_SetEccVerifyCb(CYASSL_CTX*, CallbackEccVerify);
 CYASSL_API void  CyaSSL_SetEccVerifyCtx(CYASSL* ssl, void *ctx);
 CYASSL_API void* CyaSSL_GetEccVerifyCtx(CYASSL* ssl);
 
+#ifdef CYASSL_ATOP_FEATURES_ECC_EXTRAS
+typedef int (*CallbackEccGenMasterSecret)(CYASSL* ssl, 
+       const unsigned char* peer_key, unsigned int pkSz,
+       const unsigned char* own_key, unsigned int okSz,
+       const unsigned char* labelseed, unsigned int lsSz,
+       unsigned char* out, unsigned int* outSz,
+       void* ctx);
+CYASSL_API void  CyaSSL_CTX_SetEccGenMasterSecretCb(CYASSL_CTX*, CallbackEccGenMasterSecret);
+CYASSL_API void  CyaSSL_SetEccGenMasterSecretCtx(CYASSL* ssl, void *ctx);
+CYASSL_API void* CyaSSL_GetEccGenMasterSecretCtx(CYASSL* ssl);
+#endif /* CYASSL_ATOP_FEATURES_ECC_EXTRAS */
+
 typedef int (*CallbackRsaSign)(CYASSL* ssl, 
        const unsigned char* in, unsigned int inSz,
        unsigned char* out, unsigned int* outSz,
@@ -1164,6 +1193,27 @@ CYASSL_API void  CyaSSL_CTX_SetRsaDecCb(CYASSL_CTX*, CallbackRsaDec);
 CYASSL_API void  CyaSSL_SetRsaDecCtx(CYASSL* ssl, void *ctx);
 CYASSL_API void* CyaSSL_GetRsaDecCtx(CYASSL* ssl);
 
+#ifdef CYASSL_ATOP_PORTING_CLIENT_AUTH
+/* Certificate request callback */
+struct SigAndHashAlg
+{
+  uint8_t hash;
+  uint8_t sig;
+};
+
+typedef int (*CallbackCertificateRequest)(CYASSL* ssl,
+		int certtypes_len,
+		uint8_t * certtypes,
+		int sigandhash_len,
+		struct SigAndHashAlg * sigandhash,
+		int ca_len,
+		uint8_t * ca);
+
+CYASSL_API void  CyaSSL_CTX_SetCertReqCb(CYASSL_CTX* ctx, CallbackCertificateRequest cb);
+
+CYASSL_API void  CyaSSL_SetCertReqCtx(CYASSL* ssl, void *ctx);
+CYASSL_API void* CyaSSL_GetCertReqCtx(CYASSL* ssl);
+#endif /* CYASSL_ATOP_PORTING_CLIENT_AUTH*/
 
 #ifndef NO_CERTS
 	CYASSL_API void CyaSSL_CTX_SetCACb(CYASSL_CTX*, CallbackCACache);

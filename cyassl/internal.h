@@ -100,6 +100,8 @@
 #elif defined(MBED)
 #elif defined(CYASSL_TIRTOS)
     /* do nothing */
+#elif defined(CYASSL_ATOP_PORTING)
+    #include "monitors.h"
 #else
     #ifndef SINGLE_THREADED
         #define CYASSL_PTHREADS
@@ -624,6 +626,9 @@ enum Misc {
 
     SEND_CERT       = 1,
     SEND_BLANK_CERT = 2,
+#ifdef CYASSL_ATOP_FEATURES_ECC_EXTRAS
+    SEND_KA_CERT    = 3,
+#endif
 
     DTLS_MAJOR      = 0xfe,     /* DTLS major version number */
     DTLS_MINOR      = 0xff,     /* DTLS minor version number */
@@ -1444,6 +1449,9 @@ struct CYASSL_CTX {
     #ifdef HAVE_ECC
         CallbackEccSign   EccSignCb;    /* User EccSign   Callback handler */
         CallbackEccVerify EccVerifyCb;  /* User EccVerify Callback handler */
+		#ifdef CYASSL_ATOP_FEATURES_ECC_EXTRAS
+        CallbackEccGenMasterSecret EccGenMasterSecretCb; /* User Ecc generate master secret Callback handler */
+		#endif
     #endif /* HAVE_ECC */
     #ifndef NO_RSA 
         CallbackRsaSign   RsaSignCb;    /* User RsaSign   Callback handler */
@@ -1451,6 +1459,10 @@ struct CYASSL_CTX {
         CallbackRsaEnc    RsaEncCb;     /* User Rsa Public Encrypt  handler */
         CallbackRsaDec    RsaDecCb;     /* User Rsa Private Decrypt handler */
     #endif /* NO_RSA */
+	#ifdef CYASSL_ATOP_PORTING_CLIENT_AUTH
+    CallbackCertificateRequest    CertReqCb;     /* User Certificate Request callback handler */
+	#endif
+
 #endif /* HAVE_PK_CALLBACKS */
 };
 
@@ -2093,6 +2105,9 @@ struct CYASSL {
     #ifdef HAVE_ECC
         void* EccSignCtx;     /* Ecc Sign   Callback Context */
         void* EccVerifyCtx;   /* Ecc Verify Callback Context */
+		#ifdef CYASSL_ATOP_FEATURES_ECC_EXTRAS
+        void* EccGenMasterSecretCtx; /* Ecc generate master secret Callback Context */
+		#endif
     #endif /* HAVE_ECC */
     #ifndef NO_RSA 
         void* RsaSignCtx;     /* Rsa Sign   Callback Context */
@@ -2100,6 +2115,9 @@ struct CYASSL {
         void* RsaEncCtx;      /* Rsa Public  Encrypt   Callback Context */
         void* RsaDecCtx;      /* Rsa Private Decrypt   Callback Context */
     #endif /* NO_RSA */
+    #ifdef CYASSL_ATOP_PORTING_CLIENT_AUTH
+        void* CertReqCtx;     /* Certificate Request callback context */
+    #endif
 #endif /* HAVE_PK_CALLBACKS */
 #ifdef HAVE_SECRET_CALLBACK
         SessionSecretCb sessionSecretCb;
@@ -2221,10 +2239,18 @@ CYASSL_LOCAL int SendCertificate(CYASSL*);
 CYASSL_LOCAL int SendCertificateRequest(CYASSL*);
 CYASSL_LOCAL int SendServerKeyExchange(CYASSL*);
 CYASSL_LOCAL int SendBuffered(CYASSL*);
+#ifdef CYASSL_ATOP_FEATURES_TIMEOUT
+CYASSL_LOCAL int ReceiveData(CYASSL*, byte*, int, int, uint32_t);
+#else
 CYASSL_LOCAL int ReceiveData(CYASSL*, byte*, int, int);
+#endif
 CYASSL_LOCAL int SendFinished(CYASSL*);
 CYASSL_LOCAL int SendAlert(CYASSL*, int, int);
+#ifdef CYASSL_ATOP_FEATURES_TIMEOUT
+CYASSL_LOCAL int ProcessReply(CYASSL*, uint32_t);
+#else
 CYASSL_LOCAL int ProcessReply(CYASSL*);
+#endif
 
 CYASSL_LOCAL int SetCipherSpecs(CYASSL*);
 CYASSL_LOCAL int MakeMasterSecret(CYASSL*);

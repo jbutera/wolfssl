@@ -127,6 +127,10 @@ enum CyaSSL_ErrorCodes {
 
     /* add strings to SetErrorString !!!!! */
 
+#ifdef CYASSL_ATOP_FEATURES_TIMEOUT
+    SOCKET_TIMEOUT_E        = -400,        /* socket timeout, not fatal, report to application */
+#endif
+
     /* begin negotiation parameter errors */
     UNSUPPORTED_SUITE       = -500,        /* unsupported cipher suite */
     MATCH_SUITE_ERROR       = -501,        /* can't match cipher suite */

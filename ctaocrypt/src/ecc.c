@@ -2408,6 +2408,39 @@ int ecc_import_private_key(const byte* priv, word32 privSz, const byte* pub,
     return mp_read_unsigned_bin(&key->k, priv, privSz);
 }
 
+
+#ifdef CYASSL_ATOP_FEATURES_ECC_EXTRAS
+/* ecc ASN1 private key import, WITHOUT public key; so public key struct members are NOT set 
+   see rfc5915 : ECPrivateKey ::= SEQUENCE 
+   returns MP_OKAY if all went well; in this case, given ecc_key needs to be deallocated using ecc_free
+   returns != MP_OKAY otherwise, in which case no ecc_free is needed.  
+   */
+int ecc_import_private_only(const byte* privasn1, word32 asn1size, ecc_key* key)
+{
+    int x;
+    byte expected_from_offset2[] = {ASN_INTEGER, 1, 1, ASN_OCTET_STRING}; // expect version 1 as integer followed by tag for octet string
+    byte keylen;
+    if (asn1size<ecc_sets[0].size)
+        return ASN_PARSE_E; // asn1 structure for sure cannot be shorter than shortest supported keylength 
+    if (XMEMCMP(privasn1+2, expected_from_offset2, sizeof(expected_from_offset2) )!= 0) 
+        return ASN_PARSE_E; 
+
+    /* determine domain params based on size */ 
+    keylen = privasn1[6]; // i.e. len of ASN_OCTET_STRING
+    for (x = 0; (keylen> ecc_sets[x].size) && (ecc_sets[x].size != 0); x++)
+    ;
+    key->dp = &ecc_sets[x];
+    key->idx = x; 
+    if (mp_init(&key->k) != MP_OKAY) 
+        return MEMORY_E;
+    key->type = ECC_PRIVATEKEY; 
+    x = mp_read_unsigned_bin(&key->k, privasn1+7, keylen);
+    if (x != MP_OKAY) ecc_free(key); 
+    return x; 
+}
+#endif /* CYASSL_ATOP_FEATURES_ECC_EXTRAS */
+
+
 /**
    Convert ECC R,S to signature
    r       R component of signature

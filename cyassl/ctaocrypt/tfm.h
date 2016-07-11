@@ -234,7 +234,11 @@
  * It defaults to 4096-bits [allowing multiplications upto 2048x2048 bits ]
  */
 #ifndef FP_MAX_BITS
-    #define FP_MAX_BITS           4096
+    #ifdef CYASSL_ATOP_FEATURES_RESOURCES
+        #define FP_MAX_BITS           (4096*2) // SBT TLMT5677 increased from 4k to 8k
+    #else
+        #define FP_MAX_BITS           4096
+    #endif
 #endif
 #define FP_MAX_SIZE           (FP_MAX_BITS+(8*DIGIT_BIT))
 

@@ -62,6 +62,8 @@
     #endif
 #elif defined(CYASSL_CMSIS_RTOS)
     #include "cmsis_os.h"    
+#elif defined(CYASSL_ATOP_PORTING)
+    #include "cyassl_port_monitors.h"
 #elif defined(CYASSL_TIRTOS)
     #include <ti/sysbios/BIOS.h>
     #include <ti/sysbios/knl/Semaphore.h>
@@ -107,6 +109,8 @@
         #endif
     #elif defined(CYASSL_CMSIS_RTOS)
         typedef osMutexId CyaSSL_Mutex;
+    #elif defined(CYASSL_ATOP_PORTING)
+        // nothing, see included atop file for monitors
     #elif defined(CYASSL_TIRTOS)
         typedef ti_sysbios_knl_Semaphore_Handle CyaSSL_Mutex;
     #else

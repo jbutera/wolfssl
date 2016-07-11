@@ -119,6 +119,11 @@ CYASSL_API
 int ecc_import_raw(ecc_key* key, const char* qx, const char* qy,
                    const char* d, const char* curveName);
 
+#ifdef CYASSL_ATOP_FEATURES_ECC_EXTRAS
+CYASSL_API
+int ecc_import_private_only(const byte* priv, word32 privSz, ecc_key* key);
+#endif /* CYASSL_ATOP_FEATURES_ECC_EXTRAS */
+
 CYASSL_API
 int ecc_export_private_only(ecc_key* key, byte* out, word32* outLen);
 

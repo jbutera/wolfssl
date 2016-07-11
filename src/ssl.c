@@ -61,7 +61,7 @@
 
 #ifndef NO_FILESYSTEM
     #if !defined(USE_WINDOWS_API) && !defined(NO_CYASSL_DIR) \
-            && !defined(EBSNET)
+            && !defined(EBSNET) && !defined(CYASSL_ATOP_PORTING)
         #include <dirent.h>
         #include <sys/stat.h>
     #endif
@@ -488,7 +488,11 @@ int CyaSSL_write(CYASSL* ssl, const void* data, int sz)
 }
 
 
+#ifdef CYASSL_ATOP_FEATURES_TIMEOUT
+static int CyaSSL_read_internal(CYASSL* ssl, void* data, int sz, int peek, uint32_t timeout)
+#else
 static int CyaSSL_read_internal(CYASSL* ssl, void* data, int sz, int peek)
+#endif /* CYASSL_ATOP_FEATURES_TIMEOUT */
 {
     int ret;
 
@@ -509,7 +513,11 @@ static int CyaSSL_read_internal(CYASSL* ssl, void* data, int sz, int peek)
     ret = ReceiveData(ssl, (byte*)data,
                      min(sz, min(ssl->max_fragment, OUTPUT_RECORD_SIZE)), peek);
 #else
+#ifdef CYASSL_ATOP_FEATURES_TIMEOUT
+    ret = ReceiveData(ssl, (byte*)data, min(sz, OUTPUT_RECORD_SIZE), peek, timeout);
+#else
     ret = ReceiveData(ssl, (byte*)data, min(sz, OUTPUT_RECORD_SIZE), peek);
+#endif /* CYASSL_ATOP_FEATURES_TIMEOUT */
 #endif
 
     CYASSL_LEAVE("CyaSSL_read_internal()", ret);
@@ -525,8 +533,22 @@ int CyaSSL_peek(CYASSL* ssl, void* data, int sz)
 {
     CYASSL_ENTER("CyaSSL_peek()");
 
+#ifdef CYASSL_ATOP_FEATURES_TIMEOUT
+    return CyaSSL_read_internal(ssl, data, sz, TRUE, 0);
+#else
     return CyaSSL_read_internal(ssl, data, sz, TRUE);
+#endif /* CYASSL_ATOP_FEATURES_TIMEOUT */
 }
+
+
+#ifdef CYASSL_ATOP_FEATURES_TIMEOUT
+int CyaSSL_readX(CYASSL* ssl, void* data, int sz, uint32_t timeout)
+{
+    CYASSL_ENTER("CyaSSL_readX()");
+
+return CyaSSL_read_internal(ssl, data, sz, FALSE, timeout);
+}
+#endif /* CYASSL_ATOP_FEATURES_TIMEOUT */
 
 
 int CyaSSL_read(CYASSL* ssl, void* data, int sz)
@@ -2960,6 +2982,7 @@ int CyaSSL_CTX_SetOCSP_Cb(CYASSL_CTX* ctx,
         #define XFOPEN     fopen
     #endif
 
+
 /* process a file with name fname into ctx of format and type
    userChain specifies a user certificate chain to pass during handshake */
 int ProcessFile(CYASSL_CTX* ctx, const char* fname, int format, int type,
@@ -4958,7 +4981,11 @@ int CyaSSL_dtls_got_timeout(CYASSL* ssl)
 
 
     /* please see note at top of README if you get an error from connect */
+#ifdef CYASSL_ATOP_FEATURES_TIMEOUT
+    int CyaSSL_connectX(CYASSL* ssl, uint32_t timeout)
+#else
     int CyaSSL_connect(CYASSL* ssl)
+#endif
     {
         int neededState;
 
@@ -5021,7 +5048,11 @@ int CyaSSL_dtls_got_timeout(CYASSL* ssl)
             #endif
             /* get response */
             while (ssl->options.serverState < neededState) {
+            #ifdef CYASSL_ATOP_FEATURES_TIMEOUT
+                if ( (ssl->error = ProcessReply(ssl, timeout)) < 0) { // SBT pass the real timeout and not hardcoded 0
+            #else
                 if ( (ssl->error = ProcessReply(ssl)) < 0) {
+            #endif
                     CYASSL_ERROR(ssl->error);
                     return SSL_FATAL_ERROR;
                 }
@@ -5103,7 +5134,12 @@ int CyaSSL_dtls_got_timeout(CYASSL* ssl)
 
         case FIRST_REPLY_DONE :
             #ifndef NO_CERTS
+            #ifdef CYASSL_ATOP_FEATURES_ECC_EXTRAS
+                /* section 7.4.8 of http://tools.ietf.org/html/rfc5246 */
+                if ( (ssl->options.sendVerify) && (ssl->options.sendVerify!=SEND_KA_CERT) )  {
+            #else
                 if (ssl->options.sendVerify) {
+            #endif
                     if ( (ssl->error = SendCertificate(ssl)) != 0) {
                         CYASSL_ERROR(ssl->error);
                         return SSL_FATAL_ERROR;
@@ -5161,7 +5197,11 @@ int CyaSSL_dtls_got_timeout(CYASSL* ssl)
         case FINISHED_DONE :
             /* get response */
             while (ssl->options.serverState < SERVER_FINISHED_COMPLETE)
+            #ifdef CYASSL_ATOP_FEATURES_TIMEOUT
+                if ( (ssl->error = ProcessReply(ssl, timeout)) < 0) { // SBT pass the real timeout and not hardcoded 0
+            #else
                 if ( (ssl->error = ProcessReply(ssl)) < 0) {
+            #endif
                     CYASSL_ERROR(ssl->error);
                     return SSL_FATAL_ERROR;
                 }
@@ -5179,6 +5219,14 @@ int CyaSSL_dtls_got_timeout(CYASSL* ssl)
             return SSL_FATAL_ERROR; /* unknown connect state */
         }
     }
+
+#ifdef CYASSL_ATOP_FEATURES_TIMEOUT
+int CyaSSL_connect(CYASSL* ssl)
+    {
+      CYASSL_MSG("SBT-TO will pass 0 as timeout to connect.\n");
+      return CyaSSL_connectX(ssl, 0); // SBT maybe we should get the proper timeout out of the ssl->ctx context?
+    }
+#endif /* CYASSL_ATOP_FEATURES_TIMEOUT */
 
 #endif /* NO_CYASSL_CLIENT */
 
@@ -5291,7 +5339,11 @@ int CyaSSL_dtls_got_timeout(CYASSL* ssl)
         case ACCEPT_BEGIN :
             /* get response */
             while (ssl->options.clientState < CLIENT_HELLO_COMPLETE)
+            #ifdef CYASSL_ATOP_FEATURES_TIMEOUT
+                if ( (ssl->error = ProcessReply(ssl, 0)) < 0) {
+            #else
                 if ( (ssl->error = ProcessReply(ssl)) < 0) {
+            #endif
                     CYASSL_ERROR(ssl->error);
                     return SSL_FATAL_ERROR;
                 }
@@ -5400,7 +5452,11 @@ int CyaSSL_dtls_got_timeout(CYASSL* ssl)
         case SERVER_HELLO_DONE :
             if (!ssl->options.resuming) {
                 while (ssl->options.clientState < CLIENT_FINISHED_COMPLETE)
+                #ifdef CYASSL_ATOP_FEATURES_TIMEOUT
+                    if ( (ssl->error = ProcessReply(ssl, 0)) < 0) {
+                #else
                     if ( (ssl->error = ProcessReply(ssl)) < 0) {
+                #endif
                         CYASSL_ERROR(ssl->error);
                         return SSL_FATAL_ERROR;
                     }
@@ -5428,7 +5484,11 @@ int CyaSSL_dtls_got_timeout(CYASSL* ssl)
         case ACCEPT_FINISHED_DONE :
             if (ssl->options.resuming)
                 while (ssl->options.clientState < CLIENT_FINISHED_COMPLETE)
+                #ifdef CYASSL_ATOP_FEATURES_TIMEOUT
+                    if ( (ssl->error = ProcessReply(ssl, 0)) < 0) {
+                #else
                     if ( (ssl->error = ProcessReply(ssl)) < 0) {
+                #endif
                         CYASSL_ERROR(ssl->error);
                         return SSL_FATAL_ERROR;
                     }
@@ -12234,6 +12294,30 @@ void* CyaSSL_GetEccVerifyCtx(CYASSL* ssl)
     return NULL;
 }
 
+#ifdef CYASSL_ATOP_FEATURES_ECC_EXTRAS
+void  CyaSSL_CTX_SetEccGenMasterSecretCb(CYASSL_CTX* ctx, CallbackEccGenMasterSecret cb)
+{
+    if (ctx)
+        ctx->EccGenMasterSecretCb = cb;
+}
+
+
+void  CyaSSL_SetEccGenMasterSecretCtx(CYASSL* ssl, void *ctx)
+{
+    if (ssl)
+        ssl->EccGenMasterSecretCtx = ctx;
+}
+
+
+void* CyaSSL_GetEccGenMasterSecretCtx(CYASSL* ssl)
+{
+    if (ssl)
+        return ssl->EccGenMasterSecretCtx;
+
+    return NULL;
+}
+#endif /* CYASSL_ATOP_FEATURES_ECC_EXTRAS */
+
 #endif /* HAVE_ECC */
 
 #ifndef NO_RSA
@@ -12327,6 +12411,28 @@ void* CyaSSL_GetRsaDecCtx(CYASSL* ssl)
     return NULL;
 }
 
+#ifdef CYASSL_ATOP_PORTING_CLIENT_AUTH
+void  CyaSSL_CTX_SetCertReqCb(CYASSL_CTX* ctx, CallbackCertificateRequest cb)
+{
+    if (ctx)
+        ctx->CertReqCb = cb;
+}
+
+void  CyaSSL_SetCertReqCtx(CYASSL* ssl, void *ctx)
+{
+    if (ssl)
+        ssl->CertReqCtx = ctx;
+}
+
+
+void* CyaSSL_GetCertReqCtx(CYASSL* ssl)
+{
+    if (ssl)
+        return ssl->CertReqCtx;
+
+    return NULL;
+}
+#endif
 
 #endif /* NO_RSA */
 

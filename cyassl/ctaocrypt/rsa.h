@@ -43,6 +43,9 @@ enum {
 typedef struct RsaKey {
     mp_int n, e, d, p, q, dP, dQ, u;
     int   type;                               /* public or private */
+  #ifdef CYASSL_ATOP_FEATURES_NONCRT
+    int   haveCRT;
+  #endif
     void* heap;                               /* for user memory overrides */
 #ifdef HAVE_CAVIUM
     int    devId;           /* nitrox device id */

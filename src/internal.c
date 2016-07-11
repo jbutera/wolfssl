@@ -337,6 +337,21 @@ static INLINE void ato32(const byte* c, word32* u32)
 #endif /* HAVE_LIBZ */
 
 
+#ifdef CYASSL_ATOP_FEATURES_ECC_EXTRAS
+/* from given list of ClientCertificateType, return true only if some signing cert type is in the list,
+   in other words: it are not only DH/ECDH cert types */ 
+static int hasSigningCertType (uint8_t * certtypes, int certtypes_len) {
+    int i; 
+    for (i=0; i<certtypes_len; i++) {
+        if (certtypes[i]==rsa_sign) return 1;
+        if (certtypes[i]==ecdsa_sign) return 1;
+        if (certtypes[i]==dss_sign) return 1;  
+    } 
+    return 0;  /* so list only contains subset of non-signing cert types {ecdsa_fixed, rsa_fixed, rsa_fixed_dh, dss_fixed_dh, ...} */    
+}
+#endif /* CYASSL_ATOP_FEATURES_ECC_EXTRAS */
+
+
 void InitSSL_Method(CYASSL_METHOD* method, ProtocolVersion pv)
 {
     method->version    = pv;
@@ -397,6 +412,7 @@ int InitSSL_Ctx(CYASSL_CTX* ctx, CYASSL_METHOD* method)
         ctx->CBIOCookie = NULL;
     #endif
 #endif /* CYASSL_USER_IO */
+
 #ifdef HAVE_NETX
     ctx->CBIORecv = NetX_Receive;
     ctx->CBIOSend = NetX_Send;
@@ -444,6 +460,9 @@ int InitSSL_Ctx(CYASSL_CTX* ctx, CYASSL_METHOD* method)
     #ifdef HAVE_ECC
         ctx->EccSignCb   = NULL;
         ctx->EccVerifyCb = NULL;
+        #ifdef CYASSL_ATOP_FEATURES_ECC_EXTRAS
+            ctx->EccGenMasterSecretCb = NULL;
+        #endif
     #endif /* HAVE_ECC */
     #ifndef NO_RSA
         ctx->RsaSignCb   = NULL;
@@ -451,6 +470,9 @@ int InitSSL_Ctx(CYASSL_CTX* ctx, CYASSL_METHOD* method)
         ctx->RsaEncCb    = NULL;
         ctx->RsaDecCb    = NULL;
     #endif /* NO_RSA */
+	#ifdef CYASSL_ATOP_PORTING_CLIENT_AUTH
+    ctx->CertReqCb    = NULL;
+	#endif
 #endif /* HAVE_PK_CALLBACKS */
 
     if (InitMutex(&ctx->countMutex) < 0) {
@@ -1789,12 +1811,18 @@ int InitSSL(CYASSL* ssl, CYASSL_CTX* ctx)
     #ifdef HAVE_ECC
         ssl->EccSignCtx   = NULL;
         ssl->EccVerifyCtx = NULL;
+        #ifdef CYASSL_ATOP_FEATURES_ECC_EXTRAS
+            ssl->EccGenMasterSecretCtx = NULL;
+        #endif
     #endif /* HAVE_ECC */
     #ifndef NO_RSA
         ssl->RsaSignCtx   = NULL;
         ssl->RsaVerifyCtx = NULL;
         ssl->RsaEncCtx    = NULL;
         ssl->RsaDecCtx    = NULL;
+        #ifdef CYASSL_ATOP_PORTING_CLIENT_AUTH
+            ssl->CertReqCtx   = NULL;
+        #endif
     #endif /* NO_RSA */
 #endif /* HAVE_PK_CALLBACKS */
 
@@ -2735,7 +2763,11 @@ static void AddHeaders(byte* output, word32 length, byte type, CYASSL* ssl)
 
 
 /* return bytes received, -1 on error */
+#ifdef CYASSL_ATOP_FEATURES_TIMEOUT
+static int Receive(CYASSL* ssl, byte* buf, word32 sz, uint32_t timeout)
+#else
 static int Receive(CYASSL* ssl, byte* buf, word32 sz)
+#endif
 {
     int recvd;
 
@@ -2745,7 +2777,11 @@ static int Receive(CYASSL* ssl, byte* buf, word32 sz)
     }
 
 retry:
+#ifdef CYASSL_ATOP_FEATURES_TIMEOUT
+    recvd = ssl->ctx->CBIORecv(ssl, (char *)buf, (int)sz, timeout, ssl->IOCB_ReadCtx);
+#else
     recvd = ssl->ctx->CBIORecv(ssl, (char *)buf, (int)sz, ssl->IOCB_ReadCtx);
+#endif
     if (recvd < 0)
         switch (recvd) {
             case CYASSL_CBIO_ERR_GENERAL:        /* general/unknown error */
@@ -2790,7 +2826,11 @@ retry:
                     goto retry;
                 else
 #endif
+                #ifdef CYASSL_ATOP_FEATURES_TIMEOUT
+                    return SOCKET_TIMEOUT_E;
+                #else
                     return -1;
+                #endif
 
             default:
                 return recvd;
@@ -6103,7 +6143,11 @@ static int DoAlert(CYASSL* ssl, byte* input, word32* inOutIdx, int* type,
     return level;
 }
 
+#ifdef CYASSL_ATOP_FEATURES_TIMEOUT
+static int GetInputData(CYASSL *ssl, word32 size, uint32_t timeout)
+#else
 static int GetInputData(CYASSL *ssl, word32 size)
+#endif
 {
     int in;
     int inSz;
@@ -6145,15 +6189,27 @@ static int GetInputData(CYASSL *ssl, word32 size)
 
     /* read data from network */
     do {
+    #ifdef CYASSL_ATOP_FEATURES_TIMEOUT
+        in = Receive(ssl, 
+                     ssl->buffers.inputBuffer.buffer +
+                     ssl->buffers.inputBuffer.length, 
+                     inSz, timeout);
+   #else
         in = Receive(ssl,
                      ssl->buffers.inputBuffer.buffer +
                      ssl->buffers.inputBuffer.length,
                      inSz);
+    #endif
         if (in == -1)
             return SOCKET_ERROR_E;
 
         if (in == WANT_READ)
             return WANT_READ;
+
+    #ifdef CYASSL_ATOP_FEATURES_TIMEOUT
+        if (in == SOCKET_TIMEOUT_E)
+            return SOCKET_TIMEOUT_E;
+    #endif
 
         if (in > inSz)
             return RECV_OVERFLOW_E;
@@ -6238,7 +6294,11 @@ static INLINE int VerifyMac(CYASSL* ssl, const byte* input, word32 msgSz,
 
 /* process input requests, return 0 is done, 1 is call again to complete, and
    negative number is error */
+#ifdef CYASSL_ATOP_FEATURES_TIMEOUT
+int ProcessReply(CYASSL* ssl, uint32_t timeout)
+#else
 int ProcessReply(CYASSL* ssl)
+#endif
 {
     int    ret = 0, type, readSz;
     int    atomicUser = 0;
@@ -6273,7 +6333,11 @@ int ProcessReply(CYASSL* ssl)
 
             /* get header or return error */
             if (!ssl->options.dtls) {
+            #ifdef CYASSL_ATOP_FEATURES_TIMEOUT
+                if ((ret = GetInputData(ssl, readSz, timeout)) < 0)
+            #else
                 if ((ret = GetInputData(ssl, readSz)) < 0)
+            #endif
                     return ret;
             } else {
             #ifdef CYASSL_DTLS
@@ -6281,7 +6345,11 @@ int ProcessReply(CYASSL* ssl)
                 used = ssl->buffers.inputBuffer.length -
                        ssl->buffers.inputBuffer.idx;
                 if (used < readSz)
+                #ifdef CYASSL_ATOP_FEATURES_TIMEOUT
+                    if ((ret = GetInputData(ssl, readSz, timeout)) < 0)
+                #else
                     if ((ret = GetInputData(ssl, readSz)) < 0)
+                #endif
                         return ret;
             #endif
             }
@@ -6329,7 +6397,11 @@ int ProcessReply(CYASSL* ssl)
 
             /* get sz bytes or return error */
             if (!ssl->options.dtls) {
+            #ifdef CYASSL_ATOP_FEATURES_TIMEOUT
+                if ((ret = GetInputData(ssl, ssl->curSize, timeout)) < 0)
+            #else
                 if ((ret = GetInputData(ssl, ssl->curSize)) < 0)
+            #endif
                     return ret;
             } else {
             #ifdef CYASSL_DTLS
@@ -6337,7 +6409,11 @@ int ProcessReply(CYASSL* ssl)
                 used = ssl->buffers.inputBuffer.length -
                        ssl->buffers.inputBuffer.idx;
                 if (used < ssl->curSize)
+                #ifdef CYASSL_ATOP_FEATURES_TIMEOUT
                     if ((ret = GetInputData(ssl, ssl->curSize)) < 0)
+                #else
+                    if ((ret = GetInputData(ssl, ssl->curSize)) < 0)
+                #endif
                         return ret;
             #endif  /* CYASSL_DTLS */
             }
@@ -6382,7 +6458,11 @@ int ProcessReply(CYASSL* ssl)
 
             /* get sz bytes or return error */
             if (!ssl->options.dtls) {
+            #ifdef CYASSL_ATOP_FEATURES_TIMEOUT
+                if ((ret = GetInputData(ssl, ssl->curSize, timeout)) < 0)
+            #else
                 if ((ret = GetInputData(ssl, ssl->curSize)) < 0)
+            #endif
                     return ret;
             } else {
 #ifdef CYASSL_DTLS
@@ -6390,7 +6470,11 @@ int ProcessReply(CYASSL* ssl)
                 used = ssl->buffers.inputBuffer.length -
                        ssl->buffers.inputBuffer.idx;
                 if (used < ssl->curSize)
+                #ifdef CYASSL_ATOP_FEATURES_TIMEOUT
+                    if ((ret = GetInputData(ssl, ssl->curSize, timeout)) < 0)
+                #else
                     if ((ret = GetInputData(ssl, ssl->curSize)) < 0)
+                #endif
                         return ret;
 #endif
             }
@@ -7449,7 +7533,11 @@ int SendData(CYASSL* ssl, const void* data, int sz)
 }
 
 /* process input data */
+#ifdef CYASSL_ATOP_FEATURES_TIMEOUT
+int ReceiveData(CYASSL* ssl, byte* output, int sz, int peek, uint32_t timeout)
+#else
 int ReceiveData(CYASSL* ssl, byte* output, int sz, int peek)
+#endif
 {
     int size;
 
@@ -7482,7 +7570,11 @@ startScr:
 #endif
 
     while (ssl->buffers.clearOutputBuffer.length == 0) {
+    #ifdef CYASSL_ATOP_FEATURES_TIMEOUT
+        if ( (ssl->error = ProcessReply(ssl, timeout)) < 0) {
+    #else
         if ( (ssl->error = ProcessReply(ssl)) < 0) {
+    #endif
             CYASSL_ERROR(ssl->error);
             if (ssl->error == ZERO_RETURN) {
                 CYASSL_MSG("Zero return, no more data coming");
@@ -7494,6 +7586,15 @@ startScr:
                     return 0;     /* peer reset or closed */
                 }
             }
+        #ifdef CYASSL_ATOP_FEATURES_TIMEOUT
+            else if(ssl->error == SOCKET_TIMEOUT_E)
+            {
+              // just report the timeout to the application, but reset the error
+              ssl->error = 0; // but wipe the error as such, we can retry
+              return SOCKET_TIMEOUT_E;
+            }
+            CYASSL_ERROR(ssl->error);
+        #endif
             return ssl->error;
         }
         #ifdef HAVE_SECURE_RENEGOTIATION
@@ -7882,6 +7983,11 @@ const char* CyaSSL_ERR_reason_error_string(unsigned long e)
 
     case SECURE_RENEGOTIATION_E:
         return "Invalid Renegotiation Error";
+
+#ifdef CYASSL_ATOP_FEATURES_TIMEOUT
+    case SOCKET_TIMEOUT_E:
+        return "Socket timeout Error";
+#endif
 
     case SESSION_TICKET_LEN_E:
         return "Session Ticket Too Long Error";
@@ -9441,6 +9547,14 @@ static void PickHashSigAlgo(CYASSL* ssl,
     static int DoCertificateRequest(CYASSL* ssl, const byte* input, word32*
                                     inOutIdx, word32 size)
     {
+    #ifdef CYASSL_ATOP_PORTING_CLIENT_AUTH
+        int certtypes_len=0;
+        uint8_t * certtypes=NULL;
+        int sigandhash_len=0;
+        struct SigAndHashAlg * sigandhash=NULL;
+        int ca_len=0;
+        uint8_t * ca=NULL;
+#endif
         word16 len;
         word32 begin = *inOutIdx;
 
@@ -9460,6 +9574,11 @@ static void PickHashSigAlgo(CYASSL* ssl,
             return BUFFER_ERROR;
 
         /* types, read in here */
+#ifdef CYASSL_ATOP_PORTING_CLIENT_AUTH
+        certtypes_len = len;
+        certtypes = (uint8_t *)&input[(*inOutIdx)];
+#endif
+
         *inOutIdx += len;
 
         /* signature and hash signature algorithm */
@@ -9472,6 +9591,11 @@ static void PickHashSigAlgo(CYASSL* ssl,
 
             if ((*inOutIdx - begin) + len > size)
                 return BUFFER_ERROR;
+
+#ifdef CYASSL_ATOP_PORTING_CLIENT_AUTH
+            sigandhash_len=len;
+            sigandhash=(struct SigAndHashAlg *) &input[(*inOutIdx)];
+#endif
 
             PickHashSigAlgo(ssl, input + *inOutIdx, len);
             *inOutIdx += len;
@@ -9486,6 +9610,11 @@ static void PickHashSigAlgo(CYASSL* ssl,
 
         if ((*inOutIdx - begin) + len > size)
             return BUFFER_ERROR;
+
+#ifdef CYASSL_ATOP_PORTING_CLIENT_AUTH
+        ca_len = len;
+        ca = (uint8_t *)&input[(*inOutIdx)];
+#endif
 
         while (len) {
             word16 dnSz;
@@ -9503,13 +9632,48 @@ static void PickHashSigAlgo(CYASSL* ssl,
             len -= OPAQUE16_LEN + dnSz;
         }
 
+#ifdef CYASSL_ATOP_PORTING_CLIENT_AUTH
+        if (ssl->ctx->CertReqCb != NULL)
+        {
+          ssl->ctx->CertReqCb(ssl,certtypes_len, certtypes, sigandhash_len, sigandhash, ca_len, ca);
+        }
+#endif
+
+#ifdef CYASSL_ATOP_FEATURES_ECC_EXTRAS
+        /* don't send client cert or cert verify if user hasn't provided
+           cert and private key */
+        if (ssl->buffers.certificate.buffer && ssl->buffers.key.buffer) {
+            DecodedCert clientcert; 
+            int ret, docertverify = 0; 
+            InitDecodedCert(&clientcert, ssl->buffers.certificate.buffer, ssl->buffers.certificate.length, ssl->heap);
+            ret = ParseCertRelative(&clientcert, CERT_TYPE, docertverify, NULL);
+            if (ret!=0)
+                trace(TRC_TLS, TRCLVL_DEBUG, "Warning. Could not parse client cert. Return value: %d\n", ret);
+            FreeDecodedCert(&clientcert);
+            if (clientcert.extKeyUsageSet && (clientcert.extKeyUsage==KEYUSE_KEY_AGREE)) { 
+                trace(TRC_TLS, TRCLVL_DEBUG, "Client cert only for Key Agreement, not for signing");
+                ssl->options.sendVerify = SEND_KA_CERT;
+            } 
+            else if (!hasSigningCertType(certtypes, certtypes_len)) {
+                trace(TRC_TLS, TRCLVL_DEBUG, "Server ClientCertificateType list didn't contain sign-capable cert type");  
+                ssl->options.sendVerify = SEND_KA_CERT;
+            } 
+            else {
+                ssl->options.sendVerify = SEND_CERT;
+            }  
+        } else if (IsTLS(ssl)) { 
+            ssl->options.sendVerify = SEND_BLANK_CERT;
+        } 
+
+        trace(TRC_TLS, TRCLVL_DEBUG, "sendVerify is %d\n", ssl->options.sendVerify);
+#else
         /* don't send client cert or cert verify if user hasn't provided
            cert and private key */
         if (ssl->buffers.certificate.buffer && ssl->buffers.key.buffer)
             ssl->options.sendVerify = SEND_CERT;
         else if (IsTLS(ssl))
             ssl->options.sendVerify = SEND_BLANK_CERT;
-
+#endif
         if (ssl->keys.encryptionOn)
             *inOutIdx += ssl->keys.padSz;
 
@@ -10414,7 +10578,11 @@ static void PickHashSigAlgo(CYASSL* ssl,
                     ecc_key  myKey;
                     ecc_key* peerKey = NULL;
                     word32   size = MAX_ENCRYPT_SZ;
+                #ifdef CYASSL_ATOP_FEATURES_ECC_EXTRAS
+                    byte     doUserEcc = 0;
+                #endif
 
+                    /* get peerKey */ 
                     if (ssl->specs.static_ecdh) {
                         /* TODO: EccDsa is really fixed Ecc change naming */
                         if (!ssl->peerEccDsaKeyPresent ||
@@ -10443,7 +10611,33 @@ static void PickHashSigAlgo(CYASSL* ssl,
                         return NO_PEER_KEY;
                     }
 
+                    /* get or make myKey */ 
                     ecc_init(&myKey);
+                #ifdef CYASSL_ATOP_FEATURES_ECC_EXTRAS
+                    if ( ssl->options.sendVerify == SEND_KA_CERT ) {
+                        /* cert for Key Agreement = fixed ecdh: use application key for ecdh */ 
+                        encSz = 0; /* http://tools.ietf.org/html/rfc5246#page-57 : ... then this message MUST be sent but MUST be empty ... */
+                        ret = ecc_import_private_only(ssl->buffers.key.buffer, ssl->buffers.key.length, &myKey); 
+                        if (ret != 0) {
+                            CYASSL_MSG("Going to check if key == smx key");
+                            if (0==memcmp(ssl->buffers.key.buffer, "ESE", 3)) {
+                                CYASSL_MSG("Found ESE ECC key reference");
+                                ret = 0;
+                                doUserEcc = 1;
+                            }
+                            else {
+                                return ECC_MAKEKEY_ERROR;
+                            }
+                        }
+                        else {
+                            if ( peerKey->dp->size != myKey.dp->size ) 
+                                trace(TRC_TLS, TRCLVL_DEBUG, "Warning. Peer key size is %d, different from local key size %d. ECDH will fail.", peerKey->dp->size, myKey.dp->size); 
+                        }
+                    } 
+                    else
+                #endif
+                    {
+                    /* ephemeral: generate keypair for ecdh */
                     ret = ecc_make_key(ssl->rng, peerKey->dp->size, &myKey);
                     if (ret != 0) {
                     #ifdef CYASSL_SMALL_STACK
@@ -10456,16 +10650,26 @@ static void PickHashSigAlgo(CYASSL* ssl,
                     ret = ecc_export_x963(&myKey, encSecret + 1, &size);
                     encSecret[0] = (byte)size;
                     encSz = size + 1;
+                    }
 
                     if (ret != 0)
                         ret = ECC_EXPORT_ERROR;
                     else {
+                #ifdef CYASSL_ATOP_FEATURES_ECC_EXTRAS
+                    if (0 == doUserEcc) 
+                #endif
+                    {
                         size = sizeof(ssl->arrays->preMasterSecret);
                         ret  = ecc_shared_secret(&myKey, peerKey,
                                                  ssl->arrays->preMasterSecret, &size);
                         if (ret != 0)
                             ret = ECC_SHARED_ERROR;
                     }
+                #ifdef CYASSL_ATOP_FEATURES_ECC_EXTRAS
+                    else  {
+                        size = 0;
+                    }
+                #endif
 
                     ssl->arrays->preMasterSz = size;
                     ecc_free(&myKey);
@@ -10522,8 +10726,14 @@ static void PickHashSigAlgo(CYASSL* ssl,
                 c16toa((word16)encSz, &output[idx]);
                 idx += 2;
             }
+        #ifdef CYASSL_ATOP_FEATURES_ECC_EXTRAS
+            if (encSz) {
+        #endif
             XMEMCPY(output + idx, encSecret, encSz);
             idx += encSz;
+        #ifdef CYASSL_ATOP_FEATURES_ECC_EXTRAS
+            }
+        #endif
 
             if (ssl->keys.encryptionOn) {
                 byte* input;
@@ -10663,6 +10873,14 @@ static void PickHashSigAlgo(CYASSL* ssl,
                 usingEcc = 1;
                 sigOutSz = MAX_ENCODED_SIG_SZ;
             }
+        #ifdef CYASSL_ATOP_FEATURES_ECC_EXTRAS
+            else if (0==memcmp(ssl->buffers.key.buffer, "ESE", 3)) { 
+                CYASSL_MSG("Found ESE ECC key reference");
+                usingEcc = 1;
+                sigOutSz = MAX_ENCODED_SIG_SZ; 
+                ret = 0;
+            }
+        #endif
             else {
                 CYASSL_MSG("Bad client cert type");
             }
