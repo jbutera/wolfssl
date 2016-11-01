@@ -631,14 +631,29 @@ int GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
 #elif defined(NO_DEV_RANDOM)
 
-#error "you need to write an os specific GenerateSeed() here"
+	#ifdef __ECOS__
+		#warning "write a real random seed!!!!, just for testing now"
 
-/*
-int GenerateSeed(OS_Seed* os, byte* output, word32 sz)
-{
-    return 0;
-}
-*/
+		int GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+		{
+			int i;
+
+			for (i = 0; i < sz; i++ )
+				output[i] = i;
+
+			return 0;
+		}
+	#else
+		#error "you need to write an os specific GenerateSeed() here"
+
+		/*
+		int GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+		{
+			return 0;
+		}
+		*/
+
+	#endif /* __ECOS__ */
 
 
 #else /* !USE_WINDOWS_API && !HAVE_RPT_SYS && !MICRIUM && !NO_DEV_RANDOM */

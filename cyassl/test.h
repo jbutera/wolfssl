@@ -109,7 +109,11 @@
     typedef void*         THREAD_TYPE;
     #define CYASSL_THREAD
 #else
-    #if defined(_POSIX_THREADS) && !defined(__MINGW32__)
+	#if defined(__ECOS__)
+    	typedef void*         THREAD_RETURN;
+    	typedef cyg_handle_t  THREAD_TYPE;
+		#define CYASSL_THREAD
+    #elif defined(_POSIX_THREADS) && !defined(__MINGW32__)
         typedef void*         THREAD_RETURN;
         typedef pthread_t     THREAD_TYPE;
         #define CYASSL_THREAD
@@ -655,7 +659,7 @@ static INLINE void udp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
         }
     #endif
 
-#if defined(_POSIX_THREADS) && defined(NO_MAIN_DRIVER) && !defined(__MINGW32__)
+#if defined(_POSIX_THREADS) && ((defined(NO_MAIN_DRIVER) && !defined(__MINGW32__)) || defined(__ECOS__))
     /* signal ready to accept data */
     {
     tcp_ready* ready = args->signal;
@@ -684,7 +688,7 @@ static INLINE void tcp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
 
     tcp_listen(sockfd, &port, useAnyAddr, udp);
 
-#if defined(_POSIX_THREADS) && defined(NO_MAIN_DRIVER) && !defined(__MINGW32__)
+#if defined(_POSIX_THREADS) && ((defined(NO_MAIN_DRIVER) && !defined(__MINGW32__)) || defined(__ECOS__))
     /* signal ready to tcp_accept */
     {
     tcp_ready* ready = args->signal;
@@ -716,7 +720,17 @@ static INLINE void tcp_set_nonblocking(SOCKET_T* sockfd)
         if (ret == SOCKET_ERROR)
             err_sys("ioctlsocket failed");
     #elif defined(CYASSL_MDK_ARM)
-         /* non blocking not suppported, for now */ 
+         /* non blocking not suppported, for now */
+	#elif defined(__ECOS__)
+        /* Only case for fcntl()-function supported for now is F_DUPFD [1].
+         * Alternative for setting non-blocking: Use ioctl() [2].
+         * [1] http://ecos.sourceware.org/docs-latest/ref/posix-input-and-output.html
+         * [2] http://www.mail-archive.com/ecos-discuss@ecos.sourceware.org/msg02455.html
+         */
+        int flag = 1;
+        int flags = ioctl(*sockfd, FIONBIO, &flag);
+        if (flags < 0)
+        	err_sys("ioctl set failed");
     #else
         int flags = fcntl(*sockfd, F_GETFL, 0);
         if (flags < 0)
@@ -1672,9 +1686,9 @@ static INLINE void SetupPkCallbacks(CYASSL_CTX* ctx, CYASSL* ssl)
 #endif /* HAVE_PK_CALLBACKS */
 
 
-#if defined(__hpux__) || defined(__MINGW32__)
+#if defined(__hpux__) || defined(__MINGW32__) || defined(__ECOS__)
 
-/* HP/UX doesn't have strsep, needed by test/suites.c */
+/* HP/UX and eCos don't have strsep, needed by test/suites.c */
 static INLINE char* strsep(char **stringp, const char *delim)
 {
     char* start;
@@ -1694,7 +1708,7 @@ static INLINE char* strsep(char **stringp, const char *delim)
     return start;
 }
 
-#endif /* __hpux__ */
+#endif /* __hpux__ || __MINGW32__ || __ECOS__ */
 
 #endif /* CyaSSL_TEST_H */
 
