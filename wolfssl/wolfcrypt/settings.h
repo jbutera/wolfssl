@@ -147,6 +147,10 @@
 /* Uncomment next line if building for embOS */
 /* #define WOLFSSL_EMBOS */
 
+/* Uncomment next line if using eCos */
+/* #define __ECOS__ */
+
+
 #include <wolfssl/wolfcrypt/visibility.h>
 
 #ifdef WOLFSSL_USER_SETTINGS
@@ -1011,6 +1015,152 @@ static char *fgets(char *buff, int sz, FILE *fp)
         #define SESSION_INDEX
     #endif
 #endif /* WOLFSSL_QL */
+
+
+/* eCos */
+#ifdef __ECOS__
+    #include <pkgconf/cyassl.h>
+
+    /*
+     * Set defines as needed by CyaSSL API
+     */
+    #ifdef ECOS_CYASSL_MD2
+        #define CYASSL_MD2
+    #else
+        #define NO_MD2
+    #endif /* ECOS_CYASSL_MD2 */
+
+    #ifdef ECOS_CYASSL_MD4
+        #define CYASSL_MD4
+    #else
+        #define NO_MD4
+    #endif /* ECOS_CYASSL_MD4 */
+
+    #ifdef ECOS_CYASSL_MD5
+        #define CYASSL_MD5
+    #else
+        #define NO_MD5
+    #endif /* ECOS_CYASSL_MD5 */
+
+    #ifdef ECOS_CYASSL_SHA512
+        #define CYASSL_SHA512
+    #else
+        #define NO_SHA512
+    #endif /* ECOS_CYASSL_SHA512 */
+
+    #ifdef ECOS_CYASSL_SHA384
+        #define CYASSL_SHA384
+    #else
+        #define NO_SHA384
+    #endif /* ECOS_CYASSL_SHA384 */
+
+    #ifdef ECOS_CYASSL_RIPEMD
+        #define CYASSL_RIPEMD
+    #else
+        #define NO_RIPEMD
+    #endif /* ECOS_CYASSL_RIPEMD */
+
+    #ifdef ECOS_CYASSL_HMAC
+        #define CYASSL_HMAC
+    #else
+        #define NO_HMAC
+    #endif /* ECOS_CYASSL_HMAC */
+
+    #ifdef ECOS_HAVE_AESGCM
+        #define HAVE_AESGCM
+    #else
+        #define NO_AESGCM
+    #endif /* ECOS_HAVE_AESGCM */
+
+    #ifdef ECOS_HAVE_AESCCM
+        #define HAVE_AESCCM
+    #else
+        #define NO_AESCCM
+    #endif /* ECOS_HAVE_AESCCM */
+
+    #ifdef ECOS_HAVE_CAMELLIA
+        #define HAVE_CAMELLIA
+    #else
+        #define NO_CAMELLIA
+    #endif /* ECOS_HAVE_CAMELLIA */
+
+    #ifdef ECOS_HAVE_ECC
+        #define HAVE_ECC
+    #else
+        #define NO_ECC
+    #endif /* ECOS_HAVE_ECC */
+
+    #ifdef ECOS_HAVE_HC128
+        #define HAVE_HC128
+    #else
+        #define NO_HC128
+    #endif /* ECOS_HAVE_HC128 */
+
+    #ifdef ECOS_CYASSL_SHA
+        #define CYASSL_SHA
+    #else
+        #define NO_SHA
+    #endif /* ECOS_CYASSL_SHA */
+
+    #ifdef ECOS_CYASSL_AES
+        #define CYASSL_AES
+    #else
+        #define NO_AES
+    #endif /* ECOS_CYASSL_AES */
+
+    #ifdef ECOS_CYASSL_DES3
+        #define CYASSL_DES3
+    #else
+        #define NO_DES3
+    #endif /* ECOS_CYASSL_DES3 */
+
+    #ifdef ECOS_CYASSL_DES_ECB
+        #define CYASSL_DES_ECB
+    #else
+        #define NO_DES_ECB
+    #endif /* ECOS_CYASSL_DES_ECB */
+
+    #ifdef ECOS_CYASSL_DH
+        #define CYASSL_DH
+    #else
+        #define NO_DH
+    #endif /* ECOS_CYASSL_DH */
+
+    #ifdef ECOS_CYASSL_RSA
+        #define CYASSL_RSA CYASSL_RSA
+    #else
+        #define NO_RSA
+    #endif /* ECOS_CYASSL_RSA */
+
+    #ifdef ECOS_CYASSL_DSA
+        #define CYASSL_DSA CYASSL_DSA
+    #else
+        #define NO_DSA
+    #endif /* ECOS_CYASSL_DSA */
+
+    #ifdef ECOS_CYASSL_RC4
+        #define CYASSL_RC4
+    #else
+        #define NO_RC4
+    #endif /* ECOS_CYASSL_RC4 */
+
+    #ifdef ECOS_CYASSL_RABBIT
+        #define CYASSL_RABBIT
+    #else
+        #define NO_RABBIT
+    #endif /* ECOS_CYASSL_RABBIT */
+
+    #define NO_MAIN_DRIVER
+
+    /* Find out if our network stack supports IPv6 */
+    #include <pkgconf/net.h>
+    #ifdef INET6
+        #define HAVE_GETADDRINFO
+    #endif /* INET6 */
+
+    #define WOLFSSL_PTHREADS /* Use pthread implementation of mutexes */
+    #undef SINGLE_THREADED /* Be multi-threading capable */
+#endif /* __ECOS__ */
 
 
 #if !defined(XMALLOC_USER) && !defined(MICRIUM_MALLOC) && \

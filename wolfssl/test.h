@@ -200,7 +200,7 @@
         typedef unsigned int  THREAD_RETURN;
         typedef int           THREAD_TYPE;
         #define WOLFSSL_THREAD
-    #elif defined(WOLFSSL_TIRTOS)
+    #elif defined(WOLFSSL_TIRTOS) || defined(__ECOS__)
         typedef void          THREAD_RETURN;
         typedef Task_Handle   THREAD_TYPE;
         #define WOLFSSL_THREAD
@@ -371,7 +371,7 @@ static INLINE WC_NORETURN void err_sys(const char* msg)
      * msg pointer can be null even when hardcoded and then it won't exit,
      * making null pointer checks above the err_sys() call useless.
      * We could just always exit() but some compilers will complain about no
-     * possible return, with gcc we know the attribute to handle that with 
+     * possible return, with gcc we know the attribute to handle that with
      * WC_NORETURN. */
     if (msg)
 #endif
@@ -874,7 +874,9 @@ static INLINE void udp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
         }
     #endif
 
-#if defined(_POSIX_THREADS) && defined(NO_MAIN_DRIVER) && !defined(__MINGW32__)
+#if defined(_POSIX_THREADS) && \
+        ((defined(NO_MAIN_DRIVER) && !defined(__MINGW32__)) || \
+            defined(__ECOS__))
     /* signal ready to accept data */
     {
     tcp_ready* ready = args->signal;
@@ -912,7 +914,9 @@ static INLINE void tcp_accept(SOCKET_T* sockfd, SOCKET_T* clientfd,
     if(do_listen) {
         tcp_listen(sockfd, &port, useAnyAddr, udp, sctp);
 
-    #if defined(_POSIX_THREADS) && defined(NO_MAIN_DRIVER) && !defined(__MINGW32__)
+    #if defined(_POSIX_THREADS) && \
+        ((defined(NO_MAIN_DRIVER) && !defined(__MINGW32__)) || \
+          defined(__ECOS__))
         /* signal ready to tcp_accept */
         if (args)
             ready = args->signal;
@@ -974,6 +978,16 @@ static INLINE void tcp_set_nonblocking(SOCKET_T* sockfd)
     #elif defined(WOLFSSL_MDK_ARM) || defined(WOLFSSL_KEIL_TCP_NET) \
         || defined (WOLFSSL_TIRTOS)|| defined(WOLFSSL_VXWORKS)
          /* non blocking not supported, for now */
+    #elif defined(__ECOS__)
+        /* Only case for fcntl()-function supported for now is F_DUPFD [1].
+         * Alternative for setting non-blocking: Use ioctl() [2].
+         * [1] http://ecos.sourceware.org/docs-latest/ref/posix-input-and-output.html
+         * [2] http://www.mail-archive.com/ecos-discuss@ecos.sourceware.org/msg02455.html
+         */
+        int flag = 1;
+        int flags = ioctl(*sockfd, FIONBIO, &flag);
+        if (flags < 0)
+            err_sys("ioctl set failed");
     #else
         int flags = fcntl(*sockfd, F_GETFL, 0);
         if (flags < 0)
@@ -1267,7 +1281,7 @@ static INLINE void CaCb(unsigned char* der, int sz, int type)
 
     static INLINE int ChangeToWolfRoot(void)
     {
-        #if !defined(NO_FILESYSTEM) 
+        #if !defined(NO_FILESYSTEM)
             int depth, res;
             XFILE file;
             for(depth = 0; depth <= MAX_WOLF_ROOT_DEPTH; depth++) {
@@ -1286,7 +1300,7 @@ static INLINE void CaCb(unsigned char* der, int sz, int type)
                     break;
                 }
             }
-        
+
             err_sys("wolf root not found");
             return -1;
         #else
@@ -1826,9 +1840,9 @@ static INLINE void SetupPkCallbacks(WOLFSSL_CTX* ctx, WOLFSSL* ssl)
 
 
 #if defined(__hpux__) || defined(__MINGW32__) || defined (WOLFSSL_TIRTOS) \
-                      || defined(_MSC_VER)
+                      || defined(_MSC_VER) || defined(__ECOS__)
 
-/* HP/UX doesn't have strsep, needed by test/suites.c */
+/* For platforms that don't have strsep, needed by test/suites.c */
 static INLINE char* strsep(char **stringp, const char *delim)
 {
     char* start;
@@ -1848,7 +1862,7 @@ static INLINE char* strsep(char **stringp, const char *delim)
     return start;
 }
 
-#endif /* __hpux__ and others */
+#endif
 
 /* Create unique filename, len is length of tempfn name, assuming
    len does not include null terminating character,
