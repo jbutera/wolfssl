@@ -77,3 +77,12 @@ int main(int argc, char** argv)
     return 0;
 }
 
+
+unsigned int my_random_generate(unsigned char* output, unsigned int sz)
+{
+    int i;
+    for (i=0; i<sz; i++) {
+        output[i] = i;
+    }
+    return 0;
+}

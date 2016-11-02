@@ -396,6 +396,7 @@
       c_preprocessor_definitions="WOLFSSL_ROWLEY_ARM;WOLFSSL_USER_SETTINGS"
       c_user_include_directories=".;./drivers;./mmcau_2.0.0;./CMSIS/Include;../;../../;$(TargetsDir);$(TargetsDir)/Kinetis;$(TargetsDir)/Kinetis/CMSIS;$(TargetsDir)/Kinetis/CMSIS/include;$(TargetsDir)/CMSIS_3/CMSIS/include"
       debug_register_definition_file="$(TargetsDir)/Kinetis/MK82F25615_Peripherals.xml"
+      gcc_optimization_level="Optimize For Size"
       linker_memory_map_file="$(TargetsDir)/Kinetis/MK82FN256xxx15_MemoryMap.xml"
       linker_memory_map_macros="FLASHSIZE=0x40000;SRAMSIZE=0x40000"
       linker_output_format="bin"

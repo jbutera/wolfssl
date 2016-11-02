@@ -117,7 +117,7 @@ extern "C" {
     #ifdef USE_FAST_MATH
         /* Maximum math bits (Max RSA key bits * 2) */
         #undef  FP_MAX_BITS
-        #define FP_MAX_BITS     4096
+        #define FP_MAX_BITS     6144
     #endif
 
     /* half as much memory but twice as slow */
@@ -148,7 +148,7 @@ extern "C" {
 /* ChaCha20 / Poly1305 */
 #undef HAVE_CHACHA
 #undef HAVE_POLY1305
-#if 1
+#if 0
     #define HAVE_CHACHA
     #define HAVE_POLY1305
 
@@ -160,7 +160,7 @@ extern "C" {
 /* Ed25519 / Curve25519 */
 #undef HAVE_CURVE25519
 #undef HAVE_ED25519
-#if 1
+#if 0
     #define HAVE_CURVE25519
     #define HAVE_ED25519
 
@@ -217,7 +217,7 @@ extern "C" {
 /* HW Crypto Acceleration */
 /* ------------------------------------------------------------------------- */
 #define FSL_HW_CRYPTO_MANUAL_SELECTION
-#if 1
+#if 0
     /* NXP MMCAU / LTC Support (See README.md for instructions) */
     #if defined(USE_NXP_MMCAU) || defined(USE_NXP_LTC)
         #ifdef USE_NXP_MMCAU
@@ -240,8 +240,8 @@ extern "C" {
 #undef  BENCH_EMBEDDED
 #define BENCH_EMBEDDED
 
-#undef  USE_CERT_BUFFERS_2048
-#define USE_CERT_BUFFERS_2048
+#undef  USE_CERT_BUFFERS_3072
+#define USE_CERT_BUFFERS_3072
 
 #undef  USE_CERT_BUFFERS_256
 #define USE_CERT_BUFFERS_256

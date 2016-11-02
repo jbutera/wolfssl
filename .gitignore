@@ -311,6 +311,7 @@ IDE/LINUX-SGX/*.a
 wolfcrypt/src/port/intel/qat_test
 /mplabx/wolfssl.X/dist/default/
 /mplabx/wolfcrypt_test.X/dist/default/
+/mplabx/wolfcrypt_benchmark.X/dist/default/
 
 # Arduino Generated Files
 /IDE/ARDUINO/wolfSSL
