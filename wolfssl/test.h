@@ -1870,11 +1870,21 @@ static WC_INLINE void SetDHCtx(WOLFSSL_CTX* ctx)
 
 #ifndef NO_CERTS
 
-static WC_INLINE void CaCb(unsigned char* der, int sz, int type)
+static WC_INLINE void CaDerCallback(unsigned char* der, int sz, int type)
 {
     (void)der;
     printf("Got CA cache add callback, derSz = %d, type = %d\n", sz, type);
 }
+
+#ifdef WOLFSSL_CERT_SIGNER_INFO
+static INLINE void CaCertSignerCallback(const CertSigner* cert)
+{
+    printf("CA Cert Signer Info:\n");
+    printf("\tKey OID: %u\n", cert->keyOID);
+    printf("\tPublic Key Size: %d\n", cert->pubKeySize);
+    printf("\tCommon Name: %s\n", cert->commonName);
+}
+#endif
 
 #endif /* !NO_CERTS */
 

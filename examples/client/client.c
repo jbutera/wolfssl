@@ -2310,7 +2310,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #endif
 
 #ifdef USER_CA_CB
-    wolfSSL_CTX_SetCACb(ctx, CaCb);
+    wolfSSL_CTX_SetCACb(ctx, CaDerCallback);
 #endif
 
 #ifdef HAVE_EXT_CACHE
@@ -2397,6 +2397,10 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     else if (!usePsk && !useAnon && overrideDateErrors == 1)
         wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, myDateCb);
 #endif /* !NO_CERTS */
+
+#ifdef WOLFSSL_CERT_SIGNER_INFO
+    wolfSSL_CTX_show_cert_cache(ctx, CaCertSignerCallback);
+#endif
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     ret = wolfAsync_DevOpen(&devId);

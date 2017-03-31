@@ -10020,12 +10020,39 @@ void wolfSSL_SetCertCbCtx(WOLFSSL* ssl, void* ctx)
 
 
 /* store context CA Cache addition callback */
-void wolfSSL_CTX_SetCACb(WOLFSSL_CTX* ctx, CallbackCACache cb)
+void wolfSSL_CTX_SetCACb(WOLFSSL_CTX* ctx, CbCaDer cb)
 {
     if (ctx && ctx->cm)
-        ctx->cm->caCacheCallback = cb;
+        ctx->cm->cbCaCache = cb;
 }
 
+#ifdef WOLFSSL_CERT_SIGNER_INFO
+int wolfSSL_CTX_show_cert_cache(WOLFSSL_CTX* ctx, CbCaCert cb)
+{
+    int ret, i;
+
+    if (ctx == NULL || ctx->cm == NULL || cb == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    for (i=0; i<CA_TABLE_SIZE; i++) {
+        Signer* row = ctx->cm->caTable[i];
+        while (row != NULL) {
+            CertSigner cert;
+
+            ret = wc_SignerExport(row, &cert);
+            if (ret == 0) {
+                if (cb)
+                    cb(&cert);
+            }
+
+            row = row->next;
+        }
+    }
+
+    return SSL_SUCCESS;
+}
+#endif /* WOLFSSL_CERT_SIGNER_INFO */
 
 #if defined(PERSIST_CERT_CACHE)
 
