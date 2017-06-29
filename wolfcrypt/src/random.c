@@ -2314,6 +2314,24 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     }
     
     
+#elif defined(WOLFSSL_NOOS_XIVELY)
+    #include <xi_bsp_rng.h>
+    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+    {
+        int ret = 0;
+
+        (void)os;
+
+        if (output == NULL)
+            return BUFFER_E;
+
+        for (i = 0; i < (int)sz; i++) {
+            output[i] = (byte)xi_bsp_rng_get();
+        }
+
+        return ret;
+    }
+
 #elif defined(CUSTOM_RAND_GENERATE_BLOCK)
     /* #define CUSTOM_RAND_GENERATE_BLOCK myRngFunc
      * extern int myRngFunc(byte* output, word32 sz);

@@ -154,6 +154,11 @@
         extern "C" {
     #endif
 
+#elif defined(WOLFSSL_NOOS_XIVELY)
+    #include <time.h>
+    #include <xi_bsp_time.h>
+    #define XTIME(t1)       xi_time((t1))
+    #define WOLFSSL_GMTIME
 #else
     #ifndef SINGLE_THREADED
         #define WOLFSSL_PTHREADS

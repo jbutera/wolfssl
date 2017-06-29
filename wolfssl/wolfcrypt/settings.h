@@ -202,6 +202,10 @@
 /* Uncomment next line if using RENESAS RX64N */
 /* #define WOLFSSL_RENESAS_RX65N */
 
+/* Uncomment next line if building for */
+/* #define WOLFSSL_NOOS_XIVELY */
+
+
 #include <wolfssl/wolfcrypt/visibility.h>
 
 #ifdef WOLFSSL_USER_SETTINGS
@@ -730,6 +734,84 @@ extern void uITRON4_free(void *p) ;
     #define USE_FAST_MATH
     #define TFM_TIMING_RESISTANT
     #define NO_MAIN_DRIVER
+#endif
+
+#ifdef WOLFSSL_NOOS_XIVELY
+    /* See here for details:
+       https://developer.xively.com/v1.0/docs/ti-cc3200-advanced */
+
+    #define TARGET_IS_CC3200
+    #define SINGLE_THREADED
+    #define SIZEOF_LONG_LONG 8
+    #define WOLFSSL_SMALL_STACK
+    #define WOLFSSL_USER_IO
+    #define BENCH_EMBEDDED
+    #define USE_CERT_BUFFERS_2048
+    #define USE_CERT_BUFFERS_256
+
+    #define NO_WRITEV
+    #define NO_WOLFSSL_DIR
+    #define NO_DEV_RANDOM
+    #define NO_FILESYSTEM
+    /* #define NO_ERROR_STRINGS */
+
+    #undef  USE_FAST_MATH
+    #define USE_FAST_MATH
+    #undef  ALT_ECC_SIZE
+    #define ALT_ECC_SIZE
+    #undef  TFM_TIMING_RESISTANT
+    #define TFM_TIMING_RESISTANT
+    #undef  ECC_TIMING_RESISTANT
+    #define ECC_TIMING_RESISTANT
+
+    #undef  NO_DH
+    #define NO_DH
+    #undef  NO_DES
+    #define NO_DES
+    #undef  NO_DES3
+    #define NO_DES3
+    #undef  NO_DSA
+    #define NO_DSA
+    #undef  NO_HC128
+    #define NO_HC128
+    #undef  NO_MD4
+    #define NO_MD4
+    #undef  NO_RC4
+    #define NO_RC4
+    #undef  NO_RABBIT
+    #define NO_RABBIT
+    #undef  NO_PWDBASED
+    #define NO_PWDBASED
+
+    #undef  HAVE_ECC
+    #define HAVE_ECC
+    #undef  HAVE_AESGCM
+    #define HAVE_AESGCM
+
+    #define SMALL_SESSION_CACHE
+    #define NO_CLIENT_CACHE
+
+    #undef  NO_OLD_TLS
+    #define NO_OLD_TLS
+    #undef  NO_PSK
+    #define NO_PSK
+
+    #undef  HAVE_TLS_EXTENSIONS
+    #define HAVE_TLS_EXTENSIONS
+    #undef  HAVE_SUPPORTED_CURVES
+    #define HAVE_SUPPORTED_CURVES
+
+    #define HAVE_SNI
+    #define HAVE_OCSP
+    #define HAVE_CERTIFICATE_STATUS_REQUEST
+    /* #define HAVE_ALPN */
+
+    #ifdef __IAR_SYSTEMS_ICC__
+        #pragma diag_suppress=Pa089
+    #elif !defined(__GNUC__)
+        /* Suppress the sslpro warning */
+        #pragma diag_suppress=11
+    #endif
 #endif
 
 #ifdef WOLFSSL_TIRTOS

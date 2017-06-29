@@ -2229,6 +2229,13 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
 
 #endif /* WOLFSSL_NUCLEUS_1_2 */
 
+#ifdef WOLFSSL_NOOS_XIVELY
+    time_t xi_time(time_t * timer)
+    {
+        return xi_bsp_time_getcurrenttime_seconds();
+    }
+#endif /* WOLFSSL_NOOS_XIVELY */
+
 #if defined(WOLFSSL_TI_CRYPT) || defined(WOLFSSL_TI_HASH)
     #include <wolfcrypt/src/port/ti/ti-ccm.c>  /* initialize and Mutex for TI Crypt Engine */
     #include <wolfcrypt/src/port/ti/ti-hash.c> /* md5, sha1, sha224, sha256 */
