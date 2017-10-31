@@ -10993,7 +10993,8 @@ static int rsa_certgen_test(RsaKey* key, RsaKey* keypub, WC_RNG* rng, byte* tmp)
     struct tm beforeTime;
     struct tm afterTime;
 #endif
-    const byte  mySerial[8] = {1,2,3,4,5,6,7,8};
+    /* test serial with first MSB set to make sure our code allows it */
+    const byte  mySerial[8] = {0x80,0x01,0x2,0x3,0x4,0x5,0x6,0x7};
 
     (void)keypub;
 
