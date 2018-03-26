@@ -7547,7 +7547,11 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     if (aes->asyncDev.marker == WOLFSSL_ASYNC_MARKER_AES &&
                                                 sz >= WC_ASYNC_THRESH_AES_GCM) {
     #if defined(HAVE_CAVIUM)
-        /* Not yet supported, contact wolfSSL if interested in using */
+        #ifdef HAVE_CAVIUM_V
+        return NitroxAesGcmEncrypt(aes, out, in, sz,
+            (const byte*)aes->asyncKey, aes->keylen, iv, ivSz,
+            authTag, authTagSz, authIn, authInSz);
+        #endif
     #elif defined(HAVE_INTEL_QA)
         return IntelQaSymAesGcmEncrypt(&aes->asyncDev, out, in, sz,
             (const byte*)aes->asyncKey, aes->keylen, iv, ivSz,
@@ -7890,7 +7894,11 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     if (aes->asyncDev.marker == WOLFSSL_ASYNC_MARKER_AES &&
                                                 sz >= WC_ASYNC_THRESH_AES_GCM) {
     #if defined(HAVE_CAVIUM)
-        /* Not yet supported, contact wolfSSL if interested in using */
+        #ifdef HAVE_CAVIUM_V
+        return NitroxAesGcmDecrypt(aes, out, in, sz,
+            (const byte*)aes->asyncKey, aes->keylen, iv, ivSz,
+            authTag, authTagSz, authIn, authInSz);
+        #endif
     #elif defined(HAVE_INTEL_QA)
         return IntelQaSymAesGcmDecrypt(&aes->asyncDev, out, in, sz,
             (const byte*)aes->asyncKey, aes->keylen, iv, ivSz,

@@ -235,20 +235,32 @@ void wc_bigint_free(WC_BIGINT* a)
     }
 }
 
-int wc_mp_to_bigint(mp_int* src, WC_BIGINT* dst)
+int wc_mp_to_bigint_sz(mp_int* src, WC_BIGINT* dst, word32 sz)
 {
     int err;
-    word32 sz;
+    word32 x, y;
 
     if (src == NULL || dst == NULL)
         return BAD_FUNC_ARG;
 
-    sz = mp_unsigned_bin_size(src);
     err = wc_bigint_alloc(dst, sz);
-    if (err == MP_OKAY)
-        err = mp_to_unsigned_bin(src, dst->buf);
+    if (err == MP_OKAY) {
+        x = mp_unsigned_bin_size(src);
+
+        y = sz - x;
+        XMEMSET(dst->buf, 0, y);
+        err = mp_to_unsigned_bin(src, dst->buf + y);
+    }
 
     return err;
+}
+
+int wc_mp_to_bigint(mp_int* src, WC_BIGINT* dst)
+{
+    if (src == NULL || dst == NULL)
+        return BAD_FUNC_ARG;
+
+    return wc_mp_to_bigint_sz(src, dst, mp_unsigned_bin_size(src));
 }
 
 int wc_bigint_to_mp(WC_BIGINT* src, mp_int* dst)

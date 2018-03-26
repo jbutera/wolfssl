@@ -1,6 +1,6 @@
 /* tls_bench.c
  *
- * Copyright (C) 2006-2017 wolfSSL Inc.
+ * Copyright (C) 2006-2018 wolfSSL Inc.
  *
  * This file is part of wolfSSL. (formerly known as CyaSSL)
  *
@@ -147,7 +147,7 @@ static const char* kTestStr =
 
 #ifndef NO_DH
 /* dh1024 p */
-static unsigned char p[] =
+static const unsigned char p[] =
 {
     0xE6, 0x96, 0x9D, 0x3D, 0x49, 0x5B, 0xE3, 0x2C, 0x7C, 0xF1, 0x80, 0xC3,
     0xBD, 0xD4, 0x79, 0x8E, 0x91, 0xB7, 0x81, 0x82, 0x51, 0xBB, 0x05, 0x5E,
@@ -163,7 +163,7 @@ static unsigned char p[] =
 };
 
 /* dh1024 g */
-static unsigned char g[] =
+static const unsigned char g[] =
 {
     0x02,
 };
@@ -616,10 +616,6 @@ int bench_tls(void)
     int i, doShutdown;
     char *cipher, *next_cipher, ciphers[4096];
 
-#ifdef DEBUG_WOLFSSL
-    wolfSSL_Debugging_ON();
-#endif
-
     /* Initialize wolfSSL */
     wolfSSL_Init();
 
@@ -736,9 +732,9 @@ int bench_tls(void)
     }
 
     /* Cleanup and return */
-    wolfSSL_Cleanup();      /* Cleanup the wolfSSL environment          */
+    wolfSSL_Cleanup();      /* Cleanup the wolfSSL environment */
 
-    return 0;               /* Return reporting a success               */
+    return 0;               /* Return reporting a success */
 }
 
 #ifndef NO_MAIN_DRIVER
@@ -747,6 +743,13 @@ int main(int argc, char** argv)
 {
     (void)argc;
     (void)argv;
+
+    /* indicate debug with any arg */
+    if (argc > 1) {
+    #ifdef DEBUG_WOLFSSL
+        wolfSSL_Debugging_ON();
+    #endif
+    }
 
     bench_tls();
 

@@ -759,7 +759,7 @@ int wc_HmacFinal(Hmac* hmac, byte* hash)
             return hashLen;
 
     #if defined(HAVE_CAVIUM)
-        return NitroxHmacFinal(hmac, hmac->macType, hash, hashLen);
+        return NitroxHmacFinal(hmac, hash, hashLen);
     #elif defined(HAVE_INTEL_QA)
         return IntelQaHmac(&hmac->asyncDev, hmac->macType,
             (byte*)hmac->ipad, hmac->keyLen, hash, NULL, hashLen);
@@ -982,10 +982,6 @@ int wc_HmacInit(Hmac* hmac, void* heap, int devId)
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_HMAC)
     hmac->keyLen = 0;
-    #ifdef HAVE_CAVIUM
-        hmac->dataLen = 0;
-        hmac->data    = NULL;        /* buffered input data */
-    #endif /* HAVE_CAVIUM */
 
     ret = wolfAsync_DevCtxInit(&hmac->asyncDev, WOLFSSL_ASYNC_MARKER_HMAC,
                                                          hmac->heap, devId);
@@ -1004,11 +1000,6 @@ void wc_HmacFree(Hmac* hmac)
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_HMAC)
     wolfAsync_DevCtxFree(&hmac->asyncDev, WOLFSSL_ASYNC_MARKER_HMAC);
-
-#ifdef HAVE_CAVIUM
-    XFREE(hmac->data, hmac->heap, DYNAMIC_TYPE_HMAC);
-    hmac->data = NULL;
-#endif /* HAVE_CAVIUM */
 #endif /* WOLFSSL_ASYNC_CRYPT */
 }
 

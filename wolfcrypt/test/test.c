@@ -13967,6 +13967,13 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
     if (ret != 0)
         goto done;
 
+    /* only perform the below tests if the key size matches */
+    if (dp == NULL && keySize > 0 && wc_ecc_size(&userA) != keySize) {
+        ret = ECC_CURVE_OID_E;
+        goto done;
+    }
+
+
 #ifdef HAVE_ECC_DHE
     x = ECC_SHARED_SIZE;
     do {
@@ -14941,11 +14948,16 @@ static int ecc_test_custom_curves(WC_RNG* rng)
     }
     #endif
 
+    ret = wc_ecc_init_ex(&key, HEAP_HINT, devId);
+    if (ret != 0) {
+        return -6715;
+    }
+
     inOutIdx = 0;
     ret = wc_EccPublicKeyDecode(eccKeyExplicitCurve, &inOutIdx, &key,
                                                    sizeof(eccKeyExplicitCurve));
     if (ret != 0)
-        return -6715;
+        return -6716;
 
     wc_ecc_free(&key);
 
