@@ -287,23 +287,6 @@ int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
     hmac->innerHashKeyed = 0;
     hmac->macType = (byte)type;
 
-#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_HMAC)
-    if (hmac->asyncDev.marker == WOLFSSL_ASYNC_MARKER_HMAC) {
-    #if defined(HAVE_CAVIUM)
-        if (length > WC_HMAC_BLOCK_SIZE) {
-            return WC_KEY_SIZE_E;
-        }
-
-        if (key != NULL) {
-            XMEMCPY(hmac->ipad, key, length);
-        }
-        hmac->keyLen = (word16)length;
-
-        return 0; /* nothing to do here */
-    #endif /* HAVE_CAVIUM */
-    }
-#endif /* WOLFSSL_ASYNC_CRYPT */
-
     ret = _InitHmac(hmac, type, heap);
     if (ret != 0)
         return ret;
@@ -545,7 +528,7 @@ int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_HMAC)
     if (hmac->asyncDev.marker == WOLFSSL_ASYNC_MARKER_HMAC) {
-    #if defined(HAVE_INTEL_QA)
+    #if defined(HAVE_INTEL_QA) || defined(HAVE_CAVIUM)
         if (length > hmac_block_size)
             length = hmac_block_size;
         /* update key length */

@@ -5532,7 +5532,7 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                     /* make sure we're right justified */
                     encodedSigSz = wc_EncodeSignature(encodedSig,
                             sigCtx->digest, sigCtx->digestSz, sigCtx->typeH);
-                    if (encodedSigSz == verifySz &&
+                    if (encodedSigSz == verifySz && sigCtx->out != NULL &&
                         XMEMCMP(sigCtx->out, encodedSig, encodedSigSz) == 0) {
                         ret = 0;
                     }
