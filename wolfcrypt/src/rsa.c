@@ -1465,6 +1465,7 @@ static int wc_RsaFunctionAsync(const byte* in, word32 inLen, byte* out,
     case RSA_PRIVATE_DECRYPT:
     case RSA_PRIVATE_ENCRYPT:
     #ifdef HAVE_CAVIUM
+        key->dataLen = key->n.raw.len;
         ret = NitroxRsaExptMod(in, inLen,
                                key->d.raw.buf, key->d.raw.len,
                                key->n.raw.buf, key->n.raw.len,
@@ -1489,6 +1490,7 @@ static int wc_RsaFunctionAsync(const byte* in, word32 inLen, byte* out,
     case RSA_PUBLIC_ENCRYPT:
     case RSA_PUBLIC_DECRYPT:
     #ifdef HAVE_CAVIUM
+        key->dataLen = key->n.raw.len;
         ret = NitroxRsaExptMod(in, inLen,
                                key->e.raw.buf, key->e.raw.len,
                                key->n.raw.buf, key->n.raw.len,
