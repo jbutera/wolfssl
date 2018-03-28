@@ -6118,7 +6118,7 @@ int aesgcm_test(void)
     };
 
     /* FIPS, QAT and STM32F2/4 HW Crypto only support 12-byte IV */
-#if !defined(HAVE_FIPS) && !defined(HAVE_INTEL_QA) && \
+#if !defined(HAVE_FIPS) && \
         !defined(STM32_CRYPTO) && !defined(WOLFSSL_PIC32MZ_CRYPT) && \
         !defined(WOLFSSL_XILINX_CRYPT)
 
