@@ -1781,6 +1781,22 @@ then
     AC_CHECK_FUNC([posix_memalign], [], [AC_MSG_ERROR(stacksize needs posix_memalign)])
     AC_CHECK_FUNC([pthread_attr_setstack], [], AC_CHECK_LIB([pthread],[pthread_attr_setstack]))
     AM_CFLAGS="$AM_CFLAGS -DHAVE_STACK_SIZE"
+    if test "$GCC" = "yes"
+    then
+        AM_CFLAGS="$AM_CFLAGS -fstack-usage"
+    fi
+fi
+
+
+# MAP FILE
+AC_ARG_ENABLE([map],
+    [AS_HELP_STRING([--enable-map],[Enable generation of map file (default: disabled)])],
+    [ ENABLED_MAP=$enableval ],
+    [ ENABLED_MAP=no ]
+    )
+if test "$ENABLED_MAP" = "yes"
+then
+    LDFLAGS="$LDFLAGS -Wl,-Map=output.map"
 fi
 
 
