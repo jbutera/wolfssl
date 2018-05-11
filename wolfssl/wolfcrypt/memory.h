@@ -87,6 +87,10 @@ WOLFSSL_API int wolfSSL_GetAllocators(wolfSSL_Malloc_cb*,
                                       wolfSSL_Free_cb*,
                                       wolfSSL_Realloc_cb*);
 
+#ifdef USE_WOLF_REALLOC
+    WOLFSSL_API void* wc_Realloc(void *ptr, size_t size, void* heap, int type);
+#endif
+
 #ifdef WOLFSSL_STATIC_MEMORY
     #define WOLFSSL_STATIC_TIMEOUT 1
     #ifndef WOLFSSL_STATIC_ALIGN

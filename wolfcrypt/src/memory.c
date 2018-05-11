@@ -234,7 +234,29 @@ void* wolfSSL_Realloc(void *ptr, size_t size)
 
     return res;
 }
-#endif /* WOLFSSL_STATIC_MEMORY */
+#endif /* !WOLFSSL_STATIC_MEMORY */
+
+#ifdef USE_WOLF_REALLOC
+/* fallback cases for platform without realloc */
+/* this realloc is not heap aware, so always does a new alloc, copy and free */
+void* wc_Realloc(void *ptr, size_t size, void* heap, int type)
+{
+    void* newptr = ptr;
+    if (ptr && size > 0) {
+        newptr = (void*)XMALLOC(size, heap, type);
+        if (newptr) {
+            /* this may read past original buffer, but we don't know original size */
+            XMEMCPY(newptr, ptr, size);
+            XFREE(ptr, heap, type);
+        }
+    }
+
+	(void)type;
+	(void)heap;
+
+    return newptr;
+}
+#endif /* USE_WOLF_REALLOC */
 
 #ifdef WOLFSSL_STATIC_MEMORY
 

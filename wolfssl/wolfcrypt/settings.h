@@ -687,6 +687,10 @@ extern void uITRON4_free(void *p) ;
         !defined(WOLFSSL_STATIC_MEMORY)
         #define XMALLOC(s, h, type)  pvPortMalloc((s))
         #define XFREE(p, h, type)    vPortFree((p))
+        #ifndef XREALLOC
+            #define XREALLOC(p, n, h, t) wc_Realloc((p), (n), (h), (t))
+            #define USE_WOLF_REALLOC
+        #endif
     #endif
     #if defined(HAVE_ED25519) || defined(WOLFSSL_ESPIDF)
         #define XREALLOC(p, n, h, t) wolfSSL_Realloc((p), (n))
@@ -721,6 +725,10 @@ extern void uITRON4_free(void *p) ;
         !defined(WOLFSSL_STATIC_MEMORY)
         #define XMALLOC(s, h, type)  pvPortMalloc((s))
         #define XFREE(p, h, type)    vPortFree((p))
+        #ifndef XREALLOC
+            #define XREALLOC(p, n, h, t) wc_Realloc((p), (n), (h), (t))
+            #define USE_WOLF_REALLOC
+        #endif
     #endif
 
     #define WOLFSSL_GENSEED_FORTEST
