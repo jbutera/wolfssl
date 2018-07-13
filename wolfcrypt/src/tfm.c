@@ -44,7 +44,7 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
-#ifdef USE_FAST_MATH
+#if defined(USE_FAST_MATH) && !defined(NO_BIG_INT) && !defined(WOLFSSL_SP_MATH)
 
 #include <wolfssl/wolfcrypt/random.h>
 #include <wolfssl/wolfcrypt/tfm.h>
@@ -4921,4 +4921,4 @@ int mp_lshd (mp_int * a, int b)
     return FP_OKAY;
 }
 
-#endif /* USE_FAST_MATH */
+#endif /* USE_FAST_MATH && !NO_BIG_INT && !WOLFSSL_SP_MATH */
