@@ -71,7 +71,7 @@
 #endif
 
 
-#if !defined(WOLFSSL_SP_MATH)
+#if !defined(WOLFSSL_SP_MATH) && !defined(NO_BIG_INT)
 int get_digit_count(mp_int* a)
 {
     if (a == NULL)
@@ -142,7 +142,7 @@ exit:
     return ret;
 }
 #endif /* WC_RSA_BLINDING */
-#endif
+#endif /* NO_BIG_INT */
 
 /* export an mp_int as unsigned char or hex string
  * encType is WC_TYPE_UNSIGNED_BIN or WC_TYPE_HEX_STR

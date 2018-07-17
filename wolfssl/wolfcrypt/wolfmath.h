@@ -76,21 +76,42 @@ WOLFSSL_API int wc_export_int(mp_int* mp, byte* buf, word32* len,
         #define WOLF_BIGINT_DEFINED
     #endif
 
-    WOLFSSL_LOCAL void wc_bigint_init(WC_BIGINT* a);
-    WOLFSSL_LOCAL int wc_bigint_alloc(WC_BIGINT* a, word32 sz);
-    WOLFSSL_LOCAL int wc_bigint_from_unsigned_bin(WC_BIGINT* a, const byte* in, word32 inlen);
-    WOLFSSL_LOCAL int wc_bigint_to_unsigned_bin(WC_BIGINT* a, byte* out, word32* outlen);
-    WOLFSSL_LOCAL void wc_bigint_zero(WC_BIGINT* a);
-    WOLFSSL_LOCAL void wc_bigint_free(WC_BIGINT* a);
+#ifndef NO_BIG_INT
+    /* common math functions */
+    int get_digit_count(mp_int* a);
+    mp_digit get_digit(mp_int* a, int n);
+    int get_rand_digit(WC_RNG* rng, mp_digit* d);
+    int mp_rand(mp_int* a, int digits, WC_RNG* rng);
 
-    WOLFSSL_LOCAL int wc_mp_to_bigint(mp_int* src, WC_BIGINT* dst);
-    WOLFSSL_LOCAL int wc_mp_to_bigint_sz(mp_int* src, WC_BIGINT* dst, word32 sz);
-    WOLFSSL_LOCAL int wc_bigint_to_mp(WC_BIGINT* src, mp_int* dst);
-#endif /* HAVE_WOLF_BIGINT */
+    enum {
+        /* format type */
+        WC_TYPE_HEX_STR = 1,
+        WC_TYPE_UNSIGNED_BIN = 2,
+    };
 
+    WOLFSSL_API int wc_export_int(mp_int* mp, byte* buf, word32* len, 
+        word32 keySz, int encType);
 
-#ifdef __cplusplus
-    } /* extern "C" */
-#endif
+    #ifdef HAVE_WOLF_BIGINT
+        WOLFSSL_LOCAL void wc_bigint_init(WC_BIGINT* a);
+        WOLFSSL_LOCAL int wc_bigint_alloc(WC_BIGINT* a, word32 sz);
+        WOLFSSL_LOCAL int wc_bigint_from_unsigned_bin(WC_BIGINT* a, const byte* in, word32 inlen);
+        WOLFSSL_LOCAL int wc_bigint_to_unsigned_bin(WC_BIGINT* a, byte* out, word32* outlen);
+        WOLFSSL_LOCAL void wc_bigint_zero(WC_BIGINT* a);
+        WOLFSSL_LOCAL void wc_bigint_free(WC_BIGINT* a);
+        
+        WOLFSSL_LOCAL int wc_mp_to_bigint(mp_int* src, WC_BIGINT* dst);
+        WOLFSSL_LOCAL int wc_mp_to_bigint_sz(mp_int* src, WC_BIGINT* dst, word32 sz);
+        WOLFSSL_LOCAL int wc_bigint_to_mp(WC_BIGINT* src, mp_int* dst);
+    #endif /* HAVE_WOLF_BIGINT */
+
+#else
+
+    #define mp_rand(a, digits, rng) ({ (void)(a); (void)(digits); (void)(rng); MP_VAL; })
+    #define get_digit_count(a)      ({ (void)(a); 0; })
+    #define get_digit(a, n)         ({ (void)(a); (void)(n); 0; })
+    #define get_rand_digit(rng, d)  ({ (void)(rng); (void)(d); 0; })
+
+#endif /* !NO_BIG_INT */
 
 #endif /* __WOLFMATH_H__ */

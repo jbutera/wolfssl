@@ -315,8 +315,11 @@ typedef struct fp_int {
 #if defined(ALT_ECC_SIZE) || defined(HAVE_WOLF_BIGINT)
     int      size;
 #endif
+#ifdef NO_BIG_INT
+    fp_digit dp[1]; /* not used */
+#else
     fp_digit dp[FP_SIZE];
-
+#endif /* !NO_BIG_INT */
 #ifdef HAVE_WOLF_BIGINT
     struct WC_BIGINT raw; /* unsigned binary (big endian) */
 #endif
@@ -699,22 +702,24 @@ int  fp_sqr_comba64(fp_int *a, fp_int *b);
 #define MP_NEG  FP_NEG
 #define MP_MASK FP_MASK
 
-/* Prototypes */
-#define mp_zero(a)   fp_zero(a)
-#define mp_isone(a)  fp_isone(a)
-#define mp_iseven(a) fp_iseven(a)
-#define mp_isneg(a)  fp_isneg(a)
-
 #define MP_RADIX_BIN  2
 #define MP_RADIX_OCT  8
 #define MP_RADIX_DEC  10
 #define MP_RADIX_HEX  16
 #define MP_RADIX_MAX  64
 
+/* Prototypes */
 #define mp_tobinary(M, S)  mp_toradix((M), (S), MP_RADIX_BIN)
 #define mp_tooctal(M, S)   mp_toradix((M), (S), MP_RADIX_OCT)
 #define mp_todecimal(M, S) mp_toradix((M), (S), MP_RADIX_DEC)
 #define mp_tohex(M, S)     mp_toradix((M), (S), MP_RADIX_HEX)
+
+#ifndef NO_BIG_INT
+
+#define mp_zero(a)   fp_zero(a)
+#define mp_isone(a)  fp_isone(a)
+#define mp_iseven(a) fp_iseven(a)
+#define mp_isneg(a)  fp_isneg(a)
 
 MP_API int  mp_init (mp_int * a);
 MP_API void mp_clear (mp_int * a);
@@ -811,6 +816,112 @@ MP_API int  mp_mod_d(fp_int* a, fp_digit b, fp_digit* c);
 MP_API int  mp_lshd (mp_int * a, int b);
 MP_API int  mp_abs(mp_int* a, mp_int* b);
 
+#else
+
+/* Dummy functions for BIG_INT */
+#define mp_init(a)              ({ (void)(a); MP_VAL; })
+#define mp_clear(a)             ({ (void)(a); })
+#define mp_free(a)              ({ (void)(a); })
+#define mp_forcezero(a)         ({ (void)(a); })
+#define mp_init_multi(a, b, c, d, e, f) \
+                                ({ (void)(a); (void)(b); (void)(c); (void)(d); (void)e; (void)f; MP_VAL; })
+
+#define mp_zero(a)              ({ (void)(a); 0; })
+#define mp_isone(a)             ({ (void)(a); 0; })
+#define mp_iseven(a)            ({ (void)(a); 0; })
+#define mp_isneg(a)             ({ (void)(a); 0; })
+
+#define mp_add(a, b, c)         ({ (void)(a); (void)(b); (void)(c); MP_VAL; })
+#define mp_sub(a, b, c)         ({ (void)(a); (void)(b); (void)(c); MP_VAL; })
+#define mp_add_d(a, b, c)       ({ (void)(a); (void)(b); (void)(c); MP_VAL; })
+
+#define mp_mul(a, b, c)         ({ (void)(a); (void)(b); (void)(c); MP_VAL; })
+#define mp_mul_d(a, b, c)       ({ (void)(a); (void)(b); (void)(c); MP_VAL; })
+#define mp_mulmod(a, b, c, d)   ({ (void)(a); (void)(b); (void)(c); (void)(d); MP_VAL; })
+#define mp_submod(a, b, c, d)   ({ (void)(a); (void)(b); (void)(c); (void)(d); MP_VAL; })
+#define mp_addmod(a, b, c, d)   ({ (void)(a); (void)(b); (void)(c); (void)(d); MP_VAL; })
+#define mp_mod(a, b, c)         ({ (void)(a); (void)(b); (void)(c); MP_VAL; })
+#define mp_invmod(a, b, c)      ({ (void)(a); (void)(b); (void)(c); MP_VAL; })
+#define mp_exptmod(g, x, p, y)  ({ (void)(g); (void)(x); (void)(p); (void)(y); MP_VAL; })
+#define mp_mul_2d(a, b, c)      ({ (void)(a); (void)(b); (void)(c); MP_VAL; })
+#define mp_2expt(a, b)          ({ (void)(a); (void)(b); MP_VAL; })
+
+#define mp_div(a, b, c, d)      ({ (void)(a); (void)(b); (void)(c); (void)(d); MP_VAL; })
+
+#define mp_cmp(a, b)            ({ (void)(a); (void)(b); MP_VAL; })
+#define mp_cmp_d(a, b)          ({ (void)(a); (void)(b); MP_VAL; })
+
+#define mp_unsigned_bin_size(a) ({ (void)(a); MP_VAL; })
+#define mp_read_unsigned_bin(a, b, c) \
+                                ({ (void)(a); (void)(b); (void)(c); MP_VAL; })
+#define mp_to_unsigned_bin_at_pos(x, t, b) \
+                                ({ (void)(x); (void)t; (void)(b); MP_VAL; })
+#define mp_to_unsigned_bin(a, b) \
+                                ({ (void)(a); (void)(b); MP_VAL; })
+
+#define mp_sub_d(a, b, c)       ({ (void)(a); (void)(b); (void)(c); MP_VAL; })
+#define mp_copy(a, b)           ({ (void)(a); (void)(b); MP_VAL; })
+#define mp_isodd(a)             ({ (void)(a); MP_VAL; })
+#define mp_iszero(a)            ({ (void)(a); MP_VAL; })
+#define mp_count_bits(a)        ({ (void)(a); MP_VAL; })
+#define mp_leading_bit(a)       ({ (void)(a); MP_VAL; })
+#define mp_set_int(a, b)        ({ (void)(a); (void)(b); MP_VAL; })
+#define mp_is_bit_set(a, b)     ({ (void)(a); (void)(b); MP_VAL; })
+#define mp_set_bit(a, b)        ({ (void)(a); (void)(b); MP_VAL; })
+#define mp_rshb(a, x)           ({ (void)(a); (void)(x); })
+#define mp_rshd(a, x)           ({ (void)(a); (void)(x); })
+#define mp_toradix(a, str, radix) \
+                                ({ (void)(a); (void)str; (void)radix; MP_VAL; })
+#define mp_radix_size(a, radix, size) \
+                                ({ (void)(a); (void)radix; (void)size; MP_VAL; })
+
+#define mp_dump(desc, a, verbose) \
+                                ({ (void)(desc); (void)(a); (void)(verbose); })
+
+#if !defined(NO_DSA) || defined(HAVE_ECC)
+    #define mp_read_radix(a, str, radix) \
+                                ({ (void)(a); (void)str; (void)radix; MP_VAL; })
+#endif
+
+#ifdef HAVE_ECC
+    #define mp_sqr(a, b)        ({ (void)(a); (void)(b); MP_VAL; })
+    #define mp_montgomery_reduce(a, n, mp) \
+                                ({ (void)(a); (void)(n); (void)(mp); MP_VAL; })
+    #define mp_montgomery_setup(a, rho) \
+                                ({ (void)(a); (void)(rho); MP_VAL; })
+    #define mp_div_2(a, b)      ({ (void)(a); (void)(b); MP_VAL; })
+    #define mp_init_copy(a, b)  ({ (void)(a); (void)(b); MP_VAL; })
+#endif
+
+#if defined(HAVE_ECC) || !defined(NO_RSA) || !defined(NO_DSA)
+    #define mp_set(a, b)        ({ (void)(a); (void)(b); MP_VAL; })
+#endif
+
+#if defined(HAVE_ECC) || defined(WOLFSSL_KEY_GEN)
+    #define mp_sqrmod(a, b, c)  ({ (void)(a); (void)(b); (void)(c); MP_VAL; })
+    #define mp_montgomery_calc_normalization(a, b) \
+                                ({ (void)(a); (void)(b); MP_VAL; })
+#endif
+
+#ifdef WOLFSSL_KEY_GEN
+    #define mp_gcd(a, b, c)     ({ (void)(a); (void)(b); (void)(c); MP_VAL; })
+    #define mp_lcm(a, b, c)     ({ (void)(a); (void)(b); (void)(c); MP_VAL; })
+    #define mp_prime_is_prime(a, t, result) \
+                                ({ (void)(a); (void)(t); (void)(result); MP_VAL; })
+    #define mp_rand_prime(N, len, rng, heap) \
+                                ({ (void)(N); (void)(len); (void)(rng); (void)(heap); MP_VAL; })
+    #define mp_exch(a, b)       ({ (void)(a); (void)(b); MP_VAL; })
+#endif /* WOLFSSL_KEY_GEN */
+
+#define mp_cnt_lsb(a)           ({ (void)(a); MP_VAL; })
+#define mp_div_2d(a, b, c, d)   ({ (void)(a); (void)(b); (void)(c); (void)(d); MP_VAL; })
+#define mp_mod_d(a, b, c)       ({ (void)(a); (void)(b); (void)(c); MP_VAL; })
+#define mp_lshd(a, b)           ({ (void)(a); (void)(b); MP_VAL; })
+#define mp_abs(a, b)            ({ (void)(a); (void)(b); MP_VAL; })
+
+#endif /* !NO_BIG_INT */
+
+
 WOLFSSL_API word32 CheckRunTimeFastMath(void);
 
 /* If user uses RSA, DH, DSA, or ECC math lib directly then fast math FP_SIZE
@@ -823,4 +934,3 @@ WOLFSSL_API word32 CheckRunTimeFastMath(void);
 #endif
 
 #endif  /* WOLF_CRYPT_TFM_H */
-
