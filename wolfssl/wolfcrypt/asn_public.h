@@ -577,6 +577,47 @@ WOLFSSL_API int wc_ParseCertPIV(wc_CertPIV* cert, const byte* buf, word32 totalS
 #endif /* WOLFSSL_CERT_PIV */
 
 
+
+/* Way to disable certificate info functions to save code space */
+#ifndef WOLFSSL_NO_CERT_INFO
+
+typedef struct {
+    void* decodedCert; /* internal DecodedCert allocated from heap */
+    void* heap;
+    DerBuffer* der;
+} wc_CertInfo;
+
+
+WOLFSSL_API int wc_CertInfo_Init(wc_CertInfo* info, void* heap);
+WOLFSSL_API int wc_CertInfo_LoadDer(wc_CertInfo* info, 
+    const byte* der, word32 derSz);
+WOLFSSL_API int wc_CertInfo_LoadPem(wc_CertInfo* info, 
+    const byte* pem, word32 pemSz);
+
+WOLFSSL_API int wc_CertInfo_GetPublicKey(wc_CertInfo* info, word32* keyOID,
+    word32* pkCurveOID, byte** pPubKey, word32* pPubKeySz)
+
+WOLFSSL_API int wc_CertInfo_GetSubjectRaw(wc_CertInfo* info, byte** pSubject, 
+    word32* pSubjectSz);
+
+WOLFSSL_API int wc_CertInfo_GetAuthKeyId(wc_CertInfo* info, 
+    byte** pAuthKeyId, word32* pAuthKeyIdSz);
+
+WOLFSSL_API int wc_CertInfo_GetAltNames(wc_CertInfo* info, 
+    byte** pAltNames, word32 pAltNamesSz);
+
+WOLFSSL_API int wc_CertInfo_GetDates(wc_CertInfo* info, 
+    word32* beginDate, word32* endDate);
+
+WOLFSSL_API int wc_CertInfo_GetCommonName(wc_CertInfo* info,
+    byte** pCommonName, word32* pCommonNameSz);
+
+WOLFSSL_API int wc_CertInfo_Free(wc_CertInfo* info);
+
+#endif /* WOLFSSL_NO_CERT_INFO */
+
+
+
 #ifdef __cplusplus
     } /* extern "C" */
 #endif
