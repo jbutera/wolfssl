@@ -100,6 +100,9 @@ typedef struct wc_Md5 {
 #if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
     word32 flags; /* enum wc_HashFlags in hash.h */
 #endif
+#ifdef WC_TEST_HASH_FREE
+    void* testBuf;
+#endif
 } wc_Md5;
 
 #endif /* WOLFSSL_TI_HASH */

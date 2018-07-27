@@ -505,6 +505,11 @@ int wc_InitSha_ex(wc_Sha* sha, void* heap, int devId)
     (void)devId;
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
+#ifdef WC_TEST_HASH_FREE
+    sha->testBuf = (void*)XMALLOC(sizeof(sha->testBuf), sha->heap,
+        DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
     return ret;
 }
 
@@ -794,6 +799,10 @@ void wc_ShaFree(wc_Sha* sha)
         sha->msg = NULL;
     }
 #endif
+#ifdef WC_TEST_HASH_FREE
+    XFREE(sha->testBuf, sha->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    sha->testBuf = NULL;
+#endif
 }
 
 #endif /* !WOLFSSL_TI_HASH */
@@ -856,6 +865,10 @@ int wc_ShaCopy(wc_Sha* src, wc_Sha* dst)
 #if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
      dst->flags |= WC_HASH_FLAG_ISCOPY;
 #endif
+#ifdef WC_TEST_HASH_FREE
+    dst->testBuf = NULL;
+#endif
+
     return ret;
 }
 #endif /* defined(WOLFSSL_RENESAS_TSIP_CRYPT) ... */

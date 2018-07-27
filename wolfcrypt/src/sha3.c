@@ -690,6 +690,11 @@ static int wc_InitSha3(wc_Sha3* sha3, void* heap, int devId)
     (void)devId;
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
+#ifdef WC_TEST_HASH_FREE
+    sha3->testBuf = (void*)XMALLOC(sizeof(sha3->testBuf), sha3->heap,
+        DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
     return ret;
 }
 
@@ -782,6 +787,10 @@ static void wc_Sha3Free(wc_Sha3* sha3)
 
     wolfAsync_DevCtxFree(&sha3->asyncDev, WOLFSSL_ASYNC_MARKER_SHA3);
 #endif /* WOLFSSL_ASYNC_CRYPT */
+#ifdef WC_TEST_HASH_FREE
+    XFREE(sha3->testBuf, sha3->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    sha3->testBuf = NULL;
+#endif
 }
 
 
@@ -805,6 +814,9 @@ static int wc_Sha3Copy(wc_Sha3* src, wc_Sha3* dst)
 #endif
 #if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
      dst->flags |= WC_HASH_FLAG_ISCOPY;
+#endif
+#ifdef WC_TEST_HASH_FREE
+    dst->testBuf = NULL;
 #endif
 
     return ret;

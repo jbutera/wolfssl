@@ -368,6 +368,10 @@ static int InitSha256(wc_Sha256* sha256)
     #else
         (void)devId;
     #endif /* WOLFSSL_ASYNC_CRYPT */
+    #ifdef WC_TEST_HASH_FREE
+        sha256->testBuf = (void*)XMALLOC(sizeof(sha256->testBuf), sha256->heap,
+            DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
 
         return ret;
     }
@@ -631,6 +635,10 @@ static int InitSha256(wc_Sha256* sha256)
     #else
         (void)devId;
     #endif /* WOLFSSL_ASYNC_CRYPT */
+    #ifdef WC_TEST_HASH_FREE
+        sha256->testBuf = (void*)XMALLOC(sizeof(sha256->testBuf), sha256->heap,
+            DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
 
         return ret;
     }
@@ -1297,6 +1305,11 @@ static int InitSha256(wc_Sha256* sha256)
         (void)devId;
     #endif /* WOLFSSL_ASYNC_CRYPT */
 
+    #ifdef WC_TEST_HASH_FREE
+        sha224->testBuf = (void*)XMALLOC(sizeof(sha224->testBuf), sha224->heap,
+            DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
+
         return ret;
     }
 
@@ -1375,6 +1388,10 @@ static int InitSha256(wc_Sha256* sha256)
     #ifdef WOLFSSL_PIC32MZ_HASH
         wc_Sha256Pic32Free(sha224);
     #endif
+    #ifdef WC_TEST_HASH_FREE
+        XFREE(sha224->testBuf, sha224->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        sha224->testBuf = NULL;
+    #endif
     }
 #endif /* WOLFSSL_SHA224 */
 
@@ -1424,6 +1441,10 @@ void wc_Sha256Free(wc_Sha256* sha256)
         sha256->msg = NULL;
     }
 #endif
+#ifdef WC_TEST_HASH_FREE
+    XFREE(sha256->testBuf, sha256->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    sha256->testBuf = NULL;
+#endif
 }
 
 #endif /* !WOLFSSL_TI_HASH */
@@ -1464,6 +1485,9 @@ void wc_Sha256Free(wc_Sha256* sha256)
     #endif
     #if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
         dst->flags |= WC_HASH_FLAG_ISCOPY;
+    #endif
+    #ifdef WC_TEST_HASH_FREE
+        dst->testBuf = NULL;
     #endif
 
         return ret;
@@ -1556,6 +1580,9 @@ int wc_Sha256Copy(wc_Sha256* src, wc_Sha256* dst)
 #endif
 #if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
      dst->flags |= WC_HASH_FLAG_ISCOPY;
+#endif
+#ifdef WC_TEST_HASH_FREE
+    dst->testBuf = NULL;
 #endif
 
     return ret;

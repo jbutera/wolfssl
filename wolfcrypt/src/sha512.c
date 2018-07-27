@@ -418,6 +418,11 @@ int wc_InitSha512_ex(wc_Sha512* sha512, void* heap, int devId)
     (void)devId;
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
+#ifdef WC_TEST_HASH_FREE
+    sha512->testBuf = (void*)XMALLOC(sizeof(sha512->testBuf), sha512->heap,
+                                     DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
     return ret;
 }
 
@@ -890,6 +895,11 @@ void wc_Sha512Free(wc_Sha512* sha512)
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA512)
     wolfAsync_DevCtxFree(&sha512->asyncDev, WOLFSSL_ASYNC_MARKER_SHA512);
 #endif /* WOLFSSL_ASYNC_CRYPT */
+
+#ifdef WC_TEST_HASH_FREE
+    XFREE(sha512->testBuf, sha512->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    sha512->testBuf = NULL;
+#endif
 }
 
 #endif /* WOLFSSL_SHA512 */
@@ -1037,6 +1047,11 @@ int wc_InitSha384_ex(wc_Sha384* sha384, void* heap, int devId)
     (void)devId;
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
+#ifdef WC_TEST_HASH_FREE
+    sha384->testBuf = (void*)XMALLOC(sizeof(sha384->testBuf), sha384->heap,
+        DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
     return ret;
 }
 
@@ -1062,6 +1077,10 @@ void wc_Sha384Free(wc_Sha384* sha384)
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA384)
     wolfAsync_DevCtxFree(&sha384->asyncDev, WOLFSSL_ASYNC_MARKER_SHA384);
 #endif /* WOLFSSL_ASYNC_CRYPT */
+#ifdef WC_TEST_HASH_FREE
+    XFREE(sha384->testBuf, sha384->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    sha384->testBuf = NULL;
+#endif
 }
 
 #endif /* WOLFSSL_SHA384 */
@@ -1109,6 +1128,9 @@ int wc_Sha512Copy(wc_Sha512* src, wc_Sha512* dst)
     XMEMCPY(dst, src, sizeof(wc_Sha512));
 #ifdef WOLFSSL_SMALL_STACK_CACHE
     dst->W = NULL;
+#endif
+#ifdef WC_TEST_HASH_FREE
+    dst->testBuf = NULL;
 #endif
 
 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -1185,6 +1207,9 @@ int wc_Sha384Copy(wc_Sha384* src, wc_Sha384* dst)
     XMEMCPY(dst, src, sizeof(wc_Sha384));
 #ifdef WOLFSSL_SMALL_STACK_CACHE
     dst->W = NULL;
+#endif
+#ifdef WC_TEST_HASH_FREE
+    dst->testBuf = NULL;
 #endif
 
 #ifdef WOLFSSL_ASYNC_CRYPT

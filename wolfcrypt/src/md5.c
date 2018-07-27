@@ -328,6 +328,10 @@ int wc_InitMd5_ex(wc_Md5* md5, void* heap, int devId)
 #else
     (void)devId;
 #endif
+#ifdef WC_TEST_HASH_FREE
+    md5->testBuf = (void*)XMALLOC(sizeof(md5->testBuf), md5->heap,
+        DYNAMIC_TYPE_TMP_BUFFER);
+#endif
     return ret;
 }
 
@@ -511,6 +515,10 @@ void wc_Md5Free(wc_Md5* md5)
 #ifdef WOLFSSL_PIC32MZ_HASH
     wc_Md5Pic32Free(md5);
 #endif
+#ifdef WC_TEST_HASH_FREE
+    XFREE(md5->testBuf, md5->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    md5->testBuf = NULL;
+#endif
 }
 
 int wc_Md5GetHash(wc_Md5* md5, byte* hash)
@@ -546,6 +554,9 @@ int wc_Md5Copy(wc_Md5* src, wc_Md5* dst)
 #endif
 #if defined(WOLFSSL_HASH_FLAGS) || defined(WOLF_CRYPTO_CB)
     dst->flags |= WC_HASH_FLAG_ISCOPY;
+#endif
+#ifdef WC_TEST_HASH_FREE
+    dst->testBuf = NULL;
 #endif
 
     return ret;
