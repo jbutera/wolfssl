@@ -689,7 +689,7 @@ int wolfSSL_use_old_poly(WOLFSSL* ssl, int value)
     (void)ssl;
     (void)value;
 
-#ifndef WOLFSSL_NO_TLS12
+#if !defined(WOLFSSL_NO_TLS12) || !defined(NO_OLD_TLS)
     WOLFSSL_ENTER("SSL_use_old_poly");
     WOLFSSL_MSG("Warning SSL connection auto detects old/new and this function"
             "is depreciated");
@@ -2268,7 +2268,7 @@ int wolfSSL_CTX_UseOCSPStaplingV2(WOLFSSL_CTX* ctx, byte status_type,
 #endif /* HAVE_CERTIFICATE_STATUS_REQUEST_V2 */
 
 /* Elliptic Curves */
-#ifdef HAVE_SUPPORTED_CURVES
+#if defined(HAVE_SUPPORTED_CURVES) && !defined(NO_TLS)
 #ifndef NO_WOLFSSL_CLIENT
 
 int wolfSSL_UseSupportedCurve(WOLFSSL* ssl, word16 name)
@@ -4202,9 +4202,7 @@ int wolfSSL_set_group_messages(WOLFSSL* ssl)
 /* make minVersion the internal equivalent SSL version */
 static int SetMinVersionHelper(byte* minVersion, int version)
 {
-#ifdef NO_TLS
     (void)minVersion;
-#endif
 
     switch (version) {
 #if defined(WOLFSSL_ALLOW_SSLV3) && !defined(NO_OLD_TLS)

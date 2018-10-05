@@ -2972,7 +2972,7 @@ WOLFSSL_LOCAL void FreeCiphers(WOLFSSL* ssl);
 
 /* hashes type */
 typedef struct Hashes {
-    #if !defined(NO_MD5) && !defined(NO_OLD_TLS)
+    #if !defined(NO_MD5) && (!defined(NO_OLD_TLS) || defined(WOLFSSL_ALLOW_SSLV3))
         byte md5[WC_MD5_DIGEST_SIZE];
     #endif
     #if !defined(NO_SHA)
@@ -3683,7 +3683,7 @@ typedef struct HS_Hashes {
 #ifndef NO_SHA
     wc_Sha          hashSha;            /* sha hash of handshake msgs */
 #endif
-#if !defined(NO_MD5) && !defined(NO_OLD_TLS)
+#if !defined(NO_MD5) && (!defined(NO_OLD_TLS) || defined(WOLFSSL_ALLOW_SSLV3))
     wc_Md5          hashMd5;            /* md5 hash of handshake msgs */
 #endif
 #ifndef NO_SHA256

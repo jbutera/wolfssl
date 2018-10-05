@@ -68,7 +68,7 @@ static int TLSX_KeyShare_IsSupported(int namedGroup);
     (defined(WOLFSSL_TLS13) && !defined(HAVE_ECC) && \
         !defined(HAVE_CURVE25519) && defined(HAVE_SUPPORTED_CURVES)) || \
     ((defined(HAVE_ECC) || defined(HAVE_CURVE25519)) && \
-        defined(HAVE_SUPPORTED_CURVES))) && \
+        defined(HAVE_SUPPORTED_CURVES) && !defined(NO_OLD_TLS))) && \
      defined(HAVE_TLS_EXTENSIONS)
 static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions);
 #endif
@@ -137,7 +137,7 @@ static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions);
                                 const byte *cr,const byte *sr,
                                 byte *ms/* out */);
     int tsip_generateSeesionKey(WOLFSSL *ssl);
-    int tsip_generateVerifyData(const byte *ms, const byte *side, 
+    int tsip_generateVerifyData(const byte *ms, const byte *side,
                                 const byte *handshake_hash,
                                 byte *hashes /* out */);
 #endif
@@ -230,7 +230,7 @@ int BuildTlsFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
     return ret;
 }
 
-#endif /* !WOLFSSL_NO_TLS12 */
+#endif /* !WOLFSSL_NO_TLS12 || !NO_OLD_TLS */
 
 #ifndef NO_OLD_TLS
 
@@ -286,7 +286,7 @@ ProtocolVersion MakeTLSv1_3(void)
 }
 #endif
 
-#ifndef WOLFSSL_NO_TLS12
+#if !defined(WOLFSSL_NO_TLS12) || !defined(NO_OLD_TLS)
 
 #ifdef HAVE_EXTENDED_MASTER
 static const byte ext_master_label[EXT_MASTER_LABEL_SZ + 1] =
@@ -1194,10 +1194,10 @@ int TLS_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz, int padSz,
     !defined(NO_WOLFSSL_RENESAS_TSIP_TLS_SESSION)
     if (tsip_useable(ssl)) {
         if (ssl->specs.hash_size == WC_SHA_DIGEST_SIZE)
-            ret = tsip_Sha1Hmac(ssl, myInner, WOLFSSL_TLS_HMAC_INNER_SZ, 
+            ret = tsip_Sha1Hmac(ssl, myInner, WOLFSSL_TLS_HMAC_INNER_SZ,
                                                         in, sz, digest, verify);
         else if (ssl->specs.hash_size == WC_SHA256_DIGEST_SIZE)
-            ret = tsip_Sha256Hmac(ssl, myInner, WOLFSSL_TLS_HMAC_INNER_SZ, 
+            ret = tsip_Sha256Hmac(ssl, myInner, WOLFSSL_TLS_HMAC_INNER_SZ,
                                                         in, sz, digest, verify);
         else
             ret = TSIP_MAC_DIGSZ_E;
@@ -1251,7 +1251,7 @@ int TLS_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz, int padSz,
 }
 #endif /* WOLFSSL_AEAD_ONLY */
 
-#endif /* !WOLFSSL_NO_TLS12 */
+#endif /* !WOLFSSL_NO_TLS12 || !NO_OLD_TLS */
 
 #ifdef HAVE_TLS_EXTENSIONS
 
@@ -9526,7 +9526,7 @@ static byte* TLSX_QSHKeyFind_Pub(QSHKey* qsh, word16* pubLen, word16 name)
     (defined(WOLFSSL_TLS13) && !defined(HAVE_ECC) && \
         !defined(HAVE_CURVE25519) && defined(HAVE_SUPPORTED_CURVES)) || \
     ((defined(HAVE_ECC) || defined(HAVE_CURVE25519)) && \
-        defined(HAVE_SUPPORTED_CURVES))
+        defined(HAVE_SUPPORTED_CURVES) && !defined(NO_OLD_TLS))
 
 /* Populates the default supported groups / curves */
 static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions)
