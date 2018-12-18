@@ -1321,6 +1321,19 @@ int fp_addmod(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
   #endif /* !FP_EXPTMOD_NB_CHECKTIME */
 #endif /* WC_RSA_NONBLOCK_TIME */
 
+#ifdef WC_RSA_NONBLOCK_GETCYCLES
+  static word64 GetIntelCycles(void) {
+    unsigned int lo_c, hi_c;
+    __asm__ __volatile__ (
+        "cpuid\n\t"
+        "rdtsc"
+            : "=a"(lo_c), "=d"(hi_c)   /* out */
+            : "a"(0)                   /* in */
+            : "%ebx", "%ecx");         /* clobber */
+    return ((word64)lo_c) | (((word64)hi_c) << 32);
+  }
+#endif
+
 /* non-blocking version of timing resistant fp_exptmod function */
 /* supports cache resistance */
 int fp_exptmod_nb(exptModNb_t* nb, fp_int* G, fp_int* X, fp_int* P, fp_int* Y)
@@ -1334,6 +1347,11 @@ int fp_exptmod_nb(exptModNb_t* nb, fp_int* G, fp_int* X, fp_int* P, fp_int* Y)
   nb->totalInst = 0;
   do {
     nb->totalInst += exptModNbInst[nb->state];
+#endif
+
+#ifdef WC_RSA_NONBLOCK_GETCYCLES
+  nb->trackState = nb->state;
+  nb->trackCycles = GetIntelCycles();
 #endif
 
   switch (nb->state) {
@@ -1473,6 +1491,10 @@ int fp_exptmod_nb(exptModNb_t* nb, fp_int* G, fp_int* X, fp_int* P, fp_int* Y)
     break;
   } /* switch */
 
+#ifdef WC_RSA_NONBLOCK_GETCYCLES
+  printf("state,%d,cycles,%lu\n",
+    nb->trackState, GetIntelCycles() - nb->trackCycles);
+#endif
 #ifdef WC_RSA_NONBLOCK_TIME
   /* determine if maximum blocking time has been reached */
   } while (ret == FP_WOULDBLOCK &&

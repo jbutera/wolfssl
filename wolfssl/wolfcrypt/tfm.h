@@ -583,6 +583,10 @@ typedef struct {
   word32 maxBlockInst; /* maximum instructions to block */
   word32 totalInst;    /* tracks total instructions */
 #endif
+#ifdef WC_RSA_NONBLOCK_GETCYCLES
+  int    trackState;
+  word64 trackCycles;
+#endif
 } exptModNb_t;
 
 #ifdef WC_RSA_NONBLOCK_TIME
