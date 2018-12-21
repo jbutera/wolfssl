@@ -29,7 +29,6 @@
 #                       crl/crl.pem
 #                       crl/crl.revoked
 #                       crl/eccCliCRL.pem
-#                       crl/eccSrvCRL.pem
 #
 #                       pkcs7:
 #                       test-degenerate.p7b

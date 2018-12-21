@@ -48,6 +48,9 @@ cleanup_files(){
     rm -f ./certs/intermediate/serial
     rm -f ./certs/intermediate/crlnumber
     rm -f ./certs/intermediate/*.cnf
+    rm -f ./certs/crl/ca-int*.pem
+    rm -f ./certs/crl/client-int*.pem
+    rm -f ./certs/crl/server-int*.pem
     rm -rf ./certs/intermediate/new_certs
     exit 0
 }
@@ -223,14 +226,6 @@ create_cert wolfssl_int wolfssl_int ./certs/server-key.pem server-int-cert serve
 echo "Create RSA Client Certificate signed by intermediate"
 create_cert wolfssl_int wolfssl_int ./certs/client-key.pem client-int-cert usr_cert "wolfSSL Client Chain" 3650
 
-echo "Generate CRLs for new certificates"
-openssl ca -config ./certs/intermediate/wolfssl_root.cnf -gencrl -crldays 1000 -out ./certs/crl/ca-int.pem -keyfile ./certs/intermediate/ca-int-key.pem -cert ./certs/intermediate/ca-int-cert.pem
-check_result $?
-openssl ca -config ./certs/intermediate/wolfssl_int.cnf -gencrl -crldays 1000 -out ./certs/crl/server-int.pem -keyfile ./certs/server-key.pem -cert ./certs/intermediate/server-int-cert.pem
-check_result $?
-openssl ca -config ./certs/intermediate/wolfssl_int.cnf -gencrl -crldays 1000 -out ./certs/crl/client-int.pem -keyfile ./certs/client-key.pem -cert ./certs/intermediate/client-int-cert.pem
-check_result $?
-
 echo "Assemble test chains - peer first, then intermediate"
 openssl x509 -in ./certs/intermediate/server-int-cert.pem  > ./certs/intermediate/server-chain.pem
 openssl x509 -in ./certs/intermediate/ca-int-cert.pem     >> ./certs/intermediate/server-chain.pem
@@ -269,14 +264,6 @@ create_cert wolfssl_int_ecc wolfssl_int_ecc ./certs/ecc-key.pem server-int-ecc-c
 echo "Create ECC Client Certificate signed by intermediate"
 create_cert wolfssl_int_ecc wolfssl_int_ecc ./certs/ecc-client-key.pem client-int-ecc-cert usr_cert "wolfSSL Client Chain ECC" 3650
 
-echo "Generate CRLs for new certificates"
-openssl ca -config ./certs/intermediate/wolfssl_root_ecc.cnf -gencrl -crldays 1000 -out ./certs/crl/ca-int-ecc.pem -keyfile ./certs/intermediate/ca-int-ecc-key.pem -cert ./certs/intermediate/ca-int-ecc-cert.pem
-check_result $?
-openssl ca -config ./certs/intermediate/wolfssl_int_ecc.cnf -gencrl -crldays 1000 -out ./certs/crl/server-int-ecc.pem -keyfile ./certs/ecc-key.pem -cert ./certs/intermediate/server-int-ecc-cert.pem
-check_result $?
-openssl ca -config ./certs/intermediate/wolfssl_int_ecc.cnf -gencrl -crldays 1000 -out ./certs/crl/client-int-ecc.pem -keyfile ./certs/ecc-client-key.pem -cert ./certs/intermediate/client-int-ecc-cert.pem
-check_result $?
-
 echo "Assemble test chains - peer first, then intermediate"
 openssl x509 -in ./certs/intermediate/server-int-ecc-cert.pem  > ./certs/intermediate/server-chain-ecc.pem
 openssl x509 -in ./certs/intermediate/ca-int-ecc-cert.pem     >> ./certs/intermediate/server-chain-ecc.pem
@@ -291,3 +278,11 @@ cp ./certs/intermediate/server-chain-ecc.pem ./certs/intermediate/server-chain-a
 cp ./certs/intermediate/client-chain-ecc.pem ./certs/intermediate/client-chain-alt-ecc.pem
 openssl x509 -in ./certs/external/ca-google-root.pem          >> ./certs/intermediate/server-chain-alt-ecc.pem
 openssl x509 -in ./certs/external/ca-google-root.pem          >> ./certs/intermediate/client-chain-alt-ecc.pem
+
+
+# Done in ./certs/crl/gencrls.sh. Kept here for reference
+#echo "Generate CRLs for CA certificates"
+#openssl ca -config ./certs/intermediate/wolfssl_root.cnf -gencrl -crldays 1000 -out ./certs/crl/ca-int.pem -keyfile ./certs/intermediate/ca-int-key.pem -cert ./certs/intermediate/ca-int-cert.pem
+#check_result $?
+#openssl ca -config ./certs/intermediate/wolfssl_root_ecc.cnf -gencrl -crldays 1000 -out ./certs/crl/ca-int-ecc.pem -keyfile ./certs/intermediate/ca-int-ecc-key.pem -cert ./certs/intermediate/ca-int-ecc-cert.pem
+#check_result $?

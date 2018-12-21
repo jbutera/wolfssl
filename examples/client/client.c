@@ -2753,7 +2753,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         wolfIO_SetTimeout(DEFAULT_TIMEOUT_SEC);
     #endif
 
-        if (wolfSSL_EnableCRL(ssl, WOLFSSL_CRL_CHECKALL) != WOLFSSL_SUCCESS) {
+        if (wolfSSL_EnableCRL(ssl, WOLFSSL_CRL_CHECK) != WOLFSSL_SUCCESS) {
             wolfSSL_free(ssl); ssl = NULL;
             wolfSSL_CTX_free(ctx); ctx = NULL;
             err_sys("can't enable crl check");

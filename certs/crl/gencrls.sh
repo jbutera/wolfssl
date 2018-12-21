@@ -1,6 +1,7 @@
 #!/bin/bash
 
-# gencrls, crl config already done, see taoCerts.txt for setup
+# Script generates test CRL revocation and generates CRL list for each self-signed cert
+
 check_result(){
     if [ $1 -ne 0 ]; then
         echo "Step failed, Abort"
@@ -37,144 +38,71 @@ cleanup_files() {
     echo ""
     exit 0
 }
+
+# Args: 1=out, 2=cakey, 3=cacert, 4=days
+gen_crl() {
+    echo "openssl ca -config ../renewcerts/wolfssl.cnf -gencrl -crldays $4 -out $1 -keyfile $2 -cert $3"
+    openssl ca -config ../renewcerts/wolfssl.cnf -gencrl -crldays $4 -out $1 -keyfile $2 -cert $3
+    check_result $?
+
+    # Add formatted info to pem
+    echo "openssl crl -in $1 -text > tmp.pem"
+    openssl crl -in $1 -text > tmp.pem
+    check_result $?
+    echo "mv tmp.pem $1"
+    mv tmp.pem $1
+    check_result $?
+}
+
+# Args: 1=in, 2=cakey, 3=cacert
+crl_revoke() {
+    echo "openssl ca -config ../renewcerts/wolfssl.cnf -revoke $1 -keyfile $2 -cert $3"
+    openssl ca -config ../renewcerts/wolfssl.cnf -revoke $1 -keyfile $2 -cert $3
+    check_result $?
+}
+
 trap cleanup_files EXIT
 
-#setup the files
+
+# setup the files
 setup_files
 
-# caCrl
-# revoke server-revoked-cert.pem
-echo "Step 1"
-openssl ca -config ../renewcerts/wolfssl.cnf -gencrl -crldays 1000 -out crl2.pem -keyfile ../client-key.pem -cert ../client-cert.pem
-check_result $?
+# Generate revoked examples
+# client-cert.pem (self signed)
+gen_crl crl2.pem ../client-key.pem ../client-cert.pem 1000
 
-echo "Step 2"
-openssl ca -config ../renewcerts/wolfssl.cnf -revoke ../server-revoked-cert.pem -keyfile ../ca-key.pem -cert ../ca-cert.pem
-check_result $?
+# ca-cert.pem
+crl_revoke ../server-revoked-cert.pem ../ca-key.pem ../ca-cert.pem
+gen_crl crl.pem ../ca-key.pem ../ca-cert.pem 1000
 
-echo "Step 3"
-openssl ca -config ../renewcerts/wolfssl.cnf -gencrl -crldays 1000 -out crl.pem -keyfile ../ca-key.pem -cert ../ca-cert.pem
-check_result $?
+# append crl and crl2 as new crl2
+cat crl.pem crl2.pem > tmp.pem
+mv tmp.pem crl2.pem
 
-# metadata
-echo "Step 4"
-openssl crl -in crl.pem -text > tmp
-check_result $?
-mv tmp crl.pem
-# install (only needed if working outside wolfssl)
-#cp crl.pem ~/wolfssl/certs/crl/crl.pem
-
-# crl2 create
-echo "Step 5"
-openssl crl -in crl.pem -text > tmp
-check_result $?
-echo "Step 6"
-openssl crl -in crl2.pem -text >> tmp
-check_result $?
-mv tmp crl2.pem
-
-# caCrl server revoked
-echo "Step 7"
-openssl ca -config ../renewcerts/wolfssl.cnf -revoke ../server-cert.pem -keyfile ../ca-key.pem -cert ../ca-cert.pem
-check_result $?
-
-# caCrl server revoked generation
-echo "Step 8"
-openssl ca -config ../renewcerts/wolfssl.cnf -gencrl -crldays 1000 -out crl.revoked -keyfile ../ca-key.pem -cert ../ca-cert.pem
-check_result $?
-
-# metadata
-echo "Step 9"
-openssl crl -in crl.revoked -text > tmp
-check_result $?
-mv tmp crl.revoked
-# install (only needed if working outside wolfssl)
-#cp crl.revoked ~/wolfssl/certs/crl/crl.revoked
-
+# server-cert.pem
+crl_revoke ../server-cert.pem ../ca-key.pem ../ca-cert.pem
+gen_crl crl.revoked ../ca-key.pem ../ca-cert.pem 1000
 
 # remove revoked so next time through the normal CA won't have server revoked
 cp blank.index.txt demoCA/index.txt
 
-# caEccCrl
-echo "Step 10"
-openssl ca -config ../renewcerts/wolfssl.cnf -revoke ../server-revoked-cert.pem -keyfile ../ca-ecc-key.pem -cert ../ca-ecc-cert.pem
-check_result $?
+# ca-ecc-cert.pem (root CA)
+gen_crl caEccCrl.pem ../ca-ecc-key.pem ../ca-ecc-cert.pem 1000
 
-echo "Step 11"
-openssl ca -config ../renewcerts/wolfssl.cnf -gencrl -crldays 1000 -out caEccCrl.pem -keyfile ../ca-ecc-key.pem -cert ../ca-ecc-cert.pem
-check_result $?
+# ca-ecc384-cert.pem (root CA)
+gen_crl caEcc384Crl.pem ../ca-ecc384-key.pem ../ca-ecc384-cert.pem 1000
 
-# metadata
-echo "Step 12"
-openssl crl -in caEccCrl.pem -text > tmp
-check_result $?
-mv tmp caEccCrl.pem
-# install (only needed if working outside wolfssl)
-#cp caEccCrl.pem ~/wolfssl/certs/crl/caEccCrl.pem
+# client-cert.pem (self signed)
+gen_crl cliCrl.pem ../client-key.pem ../client-cert.pem 1000
 
-# caEcc384Crl
-# server-revoked-cert.pem is already revoked in Step 10
-#openssl ca -config ../renewcerts/wolfssl.cnf -revoke ../server-revoked-cert.pem -keyfile ../ca-ecc384-key.pem -cert ../ca-ecc384-cert.pem
+# client-ecc-cert.pem (self signed)
+gen_crl eccCliCRL.pem ../ecc-client-key.pem ../client-ecc-cert.pem 1000
 
-echo "Step 13"
-openssl ca -config ../renewcerts/wolfssl.cnf -gencrl -crldays 1000 -out caEcc384Crl.pem -keyfile ../ca-ecc384-key.pem -cert ../ca-ecc384-cert.pem
-check_result $?
+# ca-int-cert.pem (intermediate CA)
+gen_crl ca-int.pem ../intermediate/ca-int-key.pem ../intermediate/ca-int-cert.pem 1000
 
-# metadata
-echo "Step 14"
-openssl crl -in caEcc384Crl.pem -text > tmp
-check_result $?
-mv tmp caEcc384Crl.pem
-# install (only needed if working outside wolfssl)
-#cp caEcc384Crl.pem ~/wolfssl/certs/crl/caEcc384Crl.pem
+# ca-int-ecc-cert.pem (intermediate CA)
+gen_crl ca-int-ecc.pem ../intermediate/ca-int-ecc-key.pem ../intermediate/ca-int-ecc-cert.pem 1000
 
-# cliCrl
-echo "Step 15"
-openssl ca -config ../renewcerts/wolfssl.cnf -gencrl -crldays 1000 -out cliCrl.pem -keyfile ../client-key.pem -cert ../client-cert.pem
-check_result $?
-
-# metadata
-echo "Step 16"
-openssl crl -in cliCrl.pem -text > tmp
-check_result $?
-mv tmp cliCrl.pem
-# install (only needed if working outside wolfssl)
-#cp cliCrl.pem ~/wolfssl/certs/crl/cliCrl.pem
-
-# eccCliCRL
-echo "Step 17"
-openssl ca -config ../renewcerts/wolfssl.cnf -gencrl -crldays 1000 -out eccCliCRL.pem -keyfile ../ecc-client-key.pem -cert ../client-ecc-cert.pem
-check_result $?
-
-# metadata
-echo "Step 18"
-openssl crl -in eccCliCRL.pem -text > tmp
-check_result $?
-mv tmp eccCliCRL.pem
-# install (only needed if working outside wolfssl)
-#cp eccCliCRL.pem ~/wolfssl/certs/crl/eccCliCRL.pem
-
-# eccSrvCRL
-echo "Step 19"
-openssl ca -config ../renewcerts/wolfssl.cnf -gencrl -crldays 1000 -out eccSrvCRL.pem -keyfile ../ecc-key.pem -cert ../server-ecc.pem
-check_result $?
-
-# metadata
-echo "Step 20"
-openssl crl -in eccSrvCRL.pem -text > tmp
-check_result $?
-mv tmp eccSrvCRL.pem
-# install (only needed if working outside wolfssl)
-#cp eccSrvCRL.pem ~/wolfssl/certs/crl/eccSrvCRL.pem
-
-# caEccCrl
-echo "Step 21"
-openssl ca -config ./wolfssl.cnf -gencrl -crldays 1000 -out caEccCrl.pem -keyfile ../ca-ecc-key.pem -cert ../ca-ecc-cert.pem
-check_result $?
-
-# ca-ecc384-cert
-echo "Step 22"
-openssl ca -config ./wolfssl.cnf -gencrl -crldays 1000 -out caEcc384Crl.pem -keyfile ../ca-ecc384-key.pem -cert ../ca-ecc384-cert.pem
-check_result $?
 
 exit 0

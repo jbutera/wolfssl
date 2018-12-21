@@ -27540,7 +27540,6 @@ static void test_wolfSSL_X509_CRL(void)
         "./certs/crl/crl2.pem",
         "./certs/crl/caEccCrl.pem",
         "./certs/crl/eccCliCRL.pem",
-        "./certs/crl/eccSrvCRL.pem",
         ""
     };
     BIO *bio;
