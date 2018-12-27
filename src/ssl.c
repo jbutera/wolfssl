@@ -31966,6 +31966,35 @@ WOLFSSL_EC_POINT *wolfSSL_EC_POINT_new(const WOLFSSL_EC_GROUP *group)
     return p;
 }
 
+int wolfSSL_EC_POINT_set_affine_coordinates_GFp(const WOLFSSL_EC_GROUP *group,
+                                                WOLFSSL_EC_POINT *point,
+                                                const WOLFSSL_BIGNUM *x,
+                                                const WOLFSSL_BIGNUM *y,
+                                                WOLFSSL_BN_CTX *ctx)
+{
+    (void)ctx;
+
+    WOLFSSL_ENTER("wolfSSL_EC_POINT_set_affine_coordinates_GFp");
+
+    if (group == NULL || point == NULL || point->internal == NULL ||
+        x == NULL || y == NULL) {
+        WOLFSSL_MSG("wolfSSL_EC_POINT_set_affine_coordinates_GFp NULL error");
+        return WOLFSSL_FAILURE;
+    }
+
+    BN_copy(point->X, x);
+    BN_copy(point->Y, y);
+
+    point->inSet = 1; /* mark internal set */
+    if (SetECPointExternal((WOLFSSL_EC_POINT *)point) != WOLFSSL_SUCCESS) {
+        WOLFSSL_MSG("SetECPointExternal failed");
+        return WOLFSSL_FAILURE;
+    }
+
+    return WOLFSSL_SUCCESS;
+}
+
+
 /* return code compliant with OpenSSL :
  *   1 if success, 0 if error
  */

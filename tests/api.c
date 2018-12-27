@@ -1784,6 +1784,9 @@ static void test_wolfSSL_EC(void)
     /* check if point X coordinate is zero */
     AssertIntEQ(BN_is_zero(X), WOLFSSL_FAILURE);
 
+    /* set the point from coordinates */
+    AssertIntEQ(EC_POINT_set_affine_coordinates_GFp(group, new_point, X, Y, ctx), WOLFSSL_SUCCESS);
+
     /* check bn2hex */
     hexStr = BN_bn2hex(k);
     AssertStrEQ(hexStr, kTest);

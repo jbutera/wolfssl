@@ -171,6 +171,12 @@ void wolfSSL_EC_GROUP_free(WOLFSSL_EC_GROUP *group);
 WOLFSSL_API
 WOLFSSL_EC_POINT *wolfSSL_EC_POINT_new(const WOLFSSL_EC_GROUP *group);
 WOLFSSL_API
+int wolfSSL_EC_POINT_set_affine_coordinates_GFp(const WOLFSSL_EC_GROUP *group,
+                                                WOLFSSL_EC_POINT *point,
+                                                const WOLFSSL_BIGNUM *x,
+                                                const WOLFSSL_BIGNUM *y,
+                                                WOLFSSL_BN_CTX *ctx);
+WOLFSSL_API
 int wolfSSL_EC_POINT_get_affine_coordinates_GFp(const WOLFSSL_EC_GROUP *group,
                                                 const WOLFSSL_EC_POINT *p,
                                                 WOLFSSL_BIGNUM *x,
@@ -230,6 +236,8 @@ char* wolfSSL_EC_POINT_point2hex(const WOLFSSL_EC_GROUP* group,
 
 #define EC_POINT_new                    wolfSSL_EC_POINT_new
 #define EC_POINT_free                   wolfSSL_EC_POINT_free
+#define EC_POINT_set_affine_coordinates_GFp \
+                                     wolfSSL_EC_POINT_set_affine_coordinates_GFp
 #define EC_POINT_get_affine_coordinates_GFp \
                                      wolfSSL_EC_POINT_get_affine_coordinates_GFp
 #define EC_POINT_mul                    wolfSSL_EC_POINT_mul
