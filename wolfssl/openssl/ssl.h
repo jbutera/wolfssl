@@ -29,6 +29,11 @@
 #ifndef WOLFSSL_OPENSSL_H_
 #define WOLFSSL_OPENSSL_H_
 
+/* include the options.h, which is generated from ./configure */
+#if defined(HAVE_CONFIG_H) && !defined(NO_WOLF_OPTIONS_H)
+    #include <wolfssl/options.h>
+#endif
+
 /* wolfssl_openssl compatibility layer */
 #ifndef OPENSSL_EXTRA_SSL_GUARD
 #define OPENSSL_EXTRA_SSL_GUARD
