@@ -19,11 +19,12 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+/* TLS template with read/write IO callbacks */
 
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 
-#ifndef WOLFCRYPT_ONLY
+#if !defined(WOLFCRYPT_ONLY) && !defined(NO_CRYPT_TEST)
 
 #include <wolfssl/ssl.h>
 #include <wolfssl/wolfcrypt/logging.h>
@@ -186,14 +187,13 @@ fail:
 
     return -1;
 }
-#endif
-
+#endif /* !WOLFCRYPT_ONLY && !NO_CRYPT_TEST */
 
 int main(void)
 {
     int ret;
 
-#ifndef WOLFCRYPT_ONLY
+#if !defined(WOLFCRYPT_ONLY) && !defined(NO_CRYPT_TEST)
     wolfSSL_Init();
 
     ret = tls_client();

@@ -8,6 +8,8 @@ WolfCryptBench:
 	$(MAKE) -f Makefile.bench
 WolfSSLClient:
 	$(MAKE) -f Makefile.client
+WolfSSLClientSocket:
+	$(MAKE) -f Makefile.clientsocket
 WolfSSLStaticLib:
 	$(MAKE) -f Makefile.static
 

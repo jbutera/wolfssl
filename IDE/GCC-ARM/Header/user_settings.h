@@ -39,7 +39,7 @@ extern "C" {
 #define SINGLE_THREADED
 
 #undef  WOLFSSL_SMALL_STACK
-#define WOLFSSL_SMALL_STACK
+//#define WOLFSSL_SMALL_STACK
 
 #undef  WOLFSSL_USER_IO
 #define WOLFSSL_USER_IO
@@ -60,23 +60,28 @@ extern "C" {
 
     /* Optimizations */
     //#define TFM_ARM
+    //#define TFM_NO_ASM
 #endif
 
 /* Wolf Single Precision Math */
 #undef WOLFSSL_SP
-#if 0
+#if 1
     #define WOLFSSL_SP
     #define WOLFSSL_SP_SMALL      /* use smaller version of code */
-    #define WOLFSSL_HAVE_SP_RSA
-    #define WOLFSSL_HAVE_SP_DH
+    //#define WOLFSSL_HAVE_SP_RSA
+    //#define WOLFSSL_HAVE_SP_DH
     #define WOLFSSL_HAVE_SP_ECC
     #define WOLFSSL_SP_CACHE_RESISTANT
-    //#define WOLFSSL_SP_MATH     /* only SP math - eliminates fast math code */
+    #define WOLFSSL_SP_MATH     /* only SP math - eliminates fast math code */
 
     /* 64 or 32 bit version */
-    //#define WOLFSSL_SP_ASM      /* required if using the ASM versions */
-    //#define WOLFSSL_SP_ARM32_ASM
-    //#define WOLFSSL_SP_ARM64_ASM
+    #define WOLFSSL_SP_ASM      /* required if using the ASM versions */
+    #ifdef WOLFSSL_SP_ASM
+        //#define WOLFSSL_SP_ARM32_ASM
+        //#define WOLFSSL_SP_ARM64_ASM
+        //#define WOLFSSL_SP_ARM_THUMB_ASM
+        #define WOLFSSL_SP_ARM_CORTEX_M_ASM
+    #endif
 #endif
 
 /* ------------------------------------------------------------------------- */
@@ -101,7 +106,7 @@ extern "C" {
 /* ------------------------------------------------------------------------- */
 /* RSA */
 #undef NO_RSA
-#if 1
+#if 0
     #ifdef USE_FAST_MATH
         /* Maximum math bits (Max RSA key bits * 2) */
         #undef  FP_MAX_BITS
@@ -165,23 +170,11 @@ extern "C" {
     /* Optional ECC calculation method */
     /* Note: doubles heap usage, but slightly faster */
     #undef  ECC_SHAMIR
-    #define ECC_SHAMIR
+    //#define ECC_SHAMIR
 
     /* Reduces heap usage, but slower */
     #undef  ECC_TIMING_RESISTANT
     #define ECC_TIMING_RESISTANT
-
-    /* Enable cofactor support */
-    #ifdef HAVE_FIPS
-        #undef  HAVE_ECC_CDH
-        #define HAVE_ECC_CDH
-    #endif
-
-    /* Validate import */
-    #ifdef HAVE_FIPS
-        #undef  WOLFSSL_VALIDATE_ECC_IMPORT
-        #define WOLFSSL_VALIDATE_ECC_IMPORT
-    #endif
 
     /* Compressed Key Support */
     #undef  HAVE_COMP_KEY
@@ -202,14 +195,14 @@ extern "C" {
         /* Speedups specific to curve */
         #ifndef NO_ECC256
             #undef  TFM_ECC256
-            #define TFM_ECC256
+            //#define TFM_ECC256
         #endif
     #endif
 #endif
 
 /* DH */
 #undef  NO_DH
-#if 1
+#if 0
     /* Use table for DH instead of -lm (math) lib dependency */
     #if 0
         #define WOLFSSL_DH_CONST
@@ -235,7 +228,7 @@ extern "C" {
 	#define HAVE_AES_CBC
 
 	#undef  HAVE_AESGCM
-    #define HAVE_AESGCM
+    //#define HAVE_AESGCM
 
     /* GCM Method: GCM_SMALL, GCM_WORD32 or GCM_TABLE */
     #define GCM_SMALL
@@ -294,7 +287,7 @@ extern "C" {
 /* ------------------------------------------------------------------------- */
 /* Sha */
 #undef NO_SHA
-#if 1
+#if 0
     /* 1k smaller, but 25% slower */
     //#define USE_SLOW_SHA
 #else
@@ -305,7 +298,7 @@ extern "C" {
 #undef NO_SHA256
 #if 1
     /* not unrolled - ~2k smaller and ~25% slower */
-    //#define USE_SLOW_SHA256
+    #define USE_SLOW_SHA256
 
     /* Sha224 */
     #if 0
@@ -365,9 +358,9 @@ extern "C" {
 #define BENCH_EMBEDDED
 
 #undef  USE_CERT_BUFFERS_2048
-#define USE_CERT_BUFFERS_2048
+//#define USE_CERT_BUFFERS_2048
 
-//#undef  USE_CERT_BUFFERS_1024
+#undef  USE_CERT_BUFFERS_1024
 //#define USE_CERT_BUFFERS_1024
 
 #undef  USE_CERT_BUFFERS_256
@@ -383,11 +376,18 @@ extern "C" {
 #if 0
     #define DEBUG_WOLFSSL
 #else
-    #if 0
+    #if 1
         #define NO_ERROR_STRINGS
     #endif
 #endif
 
+/* ------------------------------------------------------------------------- */
+/* Profiling */
+/* ------------------------------------------------------------------------- */
+#if 0
+    #define HAVE_STACK_SIZE
+    #include <stdio.h>
+#endif
 
 /* ------------------------------------------------------------------------- */
 /* Memory */
@@ -433,6 +433,7 @@ extern "C" {
 
         #undef  WOLFSSL_DEBUG_MEMORY
         #define WOLFSSL_DEBUG_MEMORY
+        //#define WOLFSSL_DEBUG_MEMORY_PRINT
     #endif
 #else
     #ifndef WOLFSSL_STATIC_MEMORY
@@ -467,7 +468,7 @@ extern unsigned int my_rng_seed_gen(void);
 #define CUSTOM_RAND_GENERATE  my_rng_seed_gen
 
 /* Choose RNG method */
-#if 1
+#if 0
     /* Use built-in P-RNG (SHA256 based) with HW RNG */
     /* P-RNG + HW RNG (P-RNG is ~8K) */
     #undef  HAVE_HASHDRBG
@@ -551,7 +552,7 @@ extern unsigned int my_rng_seed_gen(void);
 #define HAVE_SUPPORTED_CURVES
 
 #undef  WOLFSSL_BASE64_ENCODE
-#define WOLFSSL_BASE64_ENCODE
+//#define WOLFSSL_BASE64_ENCODE
 
 /* TLS Session Cache */
 #if 0
@@ -565,7 +566,7 @@ extern unsigned int my_rng_seed_gen(void);
 /* Disable Features */
 /* ------------------------------------------------------------------------- */
 #undef  NO_WOLFSSL_SERVER
-//#define NO_WOLFSSL_SERVER
+#define NO_WOLFSSL_SERVER
 
 #undef  NO_WOLFSSL_CLIENT
 //#define NO_WOLFSSL_CLIENT
@@ -631,7 +632,10 @@ extern unsigned int my_rng_seed_gen(void);
 //#define NO_CERTS
 
 #undef  NO_SIG_WRAPPER
-//#define NO_SIG_WRAPPER
+#define NO_SIG_WRAPPER
+
+#undef  WOLFSSL_NO_PEM
+#define WOLFSSL_NO_PEM
 
 #ifdef __cplusplus
 }
