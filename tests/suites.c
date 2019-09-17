@@ -985,6 +985,16 @@ int SuiteTest(int argc, char** argv)
         goto exit;
     }
 
+    /* tests for expired date */
+    strcpy(argv0[1], "tests/test-expired.conf");
+    printf("starting tests for expired date\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        args.return_code = EXIT_FAILURE;
+        goto exit;
+    }
+
     /* failure tests */
     args.argc = 3;
     strcpy(argv0[1], "tests/test-fails.conf");
