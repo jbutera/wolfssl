@@ -35,6 +35,7 @@
 #include <wolfssl/ssl.h>
 #endif /* OPENSSL_EXTRA_SSL_GUARD */
 
+#include <wolfssl/openssl/safestack.h>
 #include <wolfssl/openssl/tls1.h>
 #include <wolfssl/openssl/evp.h>
 #include <wolfssl/openssl/bio.h>
@@ -109,8 +110,6 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 typedef WOLFSSL_X509_VERIFY_PARAM X509_VERIFY_PARAM;
 
 #define EVP_CIPHER_INFO        EncryptedInfo
-
-#define STACK_OF(x) WOLFSSL_STACK
 
 #define CRYPTO_free                     XFREE
 #define CRYPTO_malloc                   XMALLOC
@@ -754,10 +753,8 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 
 #define BIO_prf                         wolfSSL_BIO_prf
 
-#define sk_num                          wolfSSL_sk_num
 #define sk_ASN1_OBJECT_num              wolfSSL_sk_num
-#define sk_value                        wolfSSL_sk_value
-#define sk_ASN1_OBJECT_value            wolfSSL_sk_value
+#define sk_ASN1_OBJECT_value            wolfSSL_sk_OBJECT_value
 
 #define d2i_PKCS12_bio                  wolfSSL_d2i_PKCS12_bio
 #define d2i_PKCS12_fp                   wolfSSL_d2i_PKCS12_fp
@@ -1000,9 +997,9 @@ enum {
 #define GENERAL_NAMES_free              wolfSSL_GENERAL_NAMES_free
 
 #define AUTHORITY_INFO_ACCESS_free      wolfSSL_AUTHORITY_INFO_ACCESS_free
-#define sk_ACCESS_DESCRIPTION_pop_free  wolfSSL_sk_ACCESS_DESCRIPTION_pop_free
 #define sk_ACCESS_DESCRIPTION_free      wolfSSL_sk_ACCESS_DESCRIPTION_free
-#define ACCESS_DESCRIPTION_free         NULL
+#define sk_ACCESS_DESCRIPTION_pop_free  wolfSSL_sk_ACCESS_DESCRIPTION_pop_free
+#define ACCESS_DESCRIPTION_free         wolfSSL_ACCESS_DESCRIPTION_free
 
 #define SSL3_AL_FATAL                   2
 #define SSL_TLSEXT_ERR_OK               0

@@ -3452,9 +3452,7 @@ typedef struct Arrays {
 struct WOLFSSL_STACK {
     unsigned long num; /* number of nodes in stack
                         * (safety measure for freeing and shortcut for count) */
-    #if defined(OPENSSL_ALL)
     wolf_sk_compare_cb comp;
-    #endif
 
     union {
         WOLFSSL_X509*          x509;
@@ -3462,6 +3460,7 @@ struct WOLFSSL_STACK {
         WOLFSSL_X509_INFO*     info;
         WOLFSSL_BIO*           bio;
         WOLFSSL_ASN1_OBJECT*   obj;
+        WOLFSSL_X509_OBJECT*   x509obj;
         WOLFSSL_CIPHER         cipher;
         WOLFSSL_ACCESS_DESCRIPTION* access;
         WOLFSSL_X509_EXTENSION* ext;
