@@ -3932,7 +3932,7 @@ AC_ARG_WITH([octeon-sync],
         AM_CFLAGS="$AM_CFLAGS -I$OCTEON_ROOT/executive"
         AS_CASE([$OCTEON_HOST],['linux'],[AM_CFLAGS="$AM_CFLAGS -DCVMX_BUILD_FOR_LINUX_HOST"])
 
-        #-I$OCTEON_ROOT/target/include 
+        #-I$OCTEON_ROOT/target/include
         AM_LDFLAGS="$AM_LDFLAGS -lrt -Xlinker -T -Xlinker $OCTEON_ROOT/executive/cvmx-shared-linux.ld"
         AM_LDFLAGS="$AM_LDFLAGS -L$OCTEON_ROOT/executive/$OCTEON_OBJ -lcvmx -lfdt"
 
@@ -4483,6 +4483,17 @@ then
     AM_CFLAGS="$AM_CFLAGS -DWOLF_CRYPTO_CB"
 fi
 
+# ST CSE (eHSM)
+AC_ARG_ENABLE([st-ehsm],
+    [AS_HELP_STRING([--enable-st-ehsm],[Enable ST Cyber Security Engine (eHSM) (default: disabled)])],
+    [ ENABLED_ST_EHSM=$enableval ],
+    [ ENABLED_ST_EHSM=no ]
+    )
+
+if test "$ENABLED_ST_EHSM" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DUSE_ST_CSE_HSM"
+fi
 
 # Session Export
 AC_ARG_ENABLE([sessionexport],
@@ -5001,6 +5012,7 @@ AM_CONDITIONAL([BUILD_PKI],[test "x$ENABLED_PKI" = "xyes"])
 AM_CONDITIONAL([BUILD_DES3],[test "x$ENABLED_DES3" = "xyes"])
 AM_CONDITIONAL([BUILD_PKCS7],[test "x$ENABLED_PKCS7" = "xyes"])
 AM_CONDITIONAL([BUILD_HASHFLAGS],[test "x$ENABLED_HASHFLAGS" = "xyes"])
+AM_CONDITIONAL([BUILD_ST_EHSM],[test "x$ENABLED_ST_EHSM" = "xyes"])
 
 
 CREATE_HEX_VERSION
@@ -5039,7 +5051,7 @@ rm -f $OPTION_FILE
 echo "/* wolfssl options.h" > $OPTION_FILE
 echo " * generated from configure options" >> $OPTION_FILE
 echo " *" >> $OPTION_FILE
-echo " * Copyright (C) 2006-2015 wolfSSL Inc." >> $OPTION_FILE
+echo " * Copyright (C) 2006-2019 wolfSSL Inc." >> $OPTION_FILE
 echo " *" >> $OPTION_FILE
 echo " * This file is part of wolfSSL. (formerly known as CyaSSL)" >> $OPTION_FILE
 echo " *" >> $OPTION_FILE
@@ -5312,4 +5324,3 @@ if test "$MINGW_LIB_WARNING" = "yes"
 then
     AC_MSG_WARN([Building with shared and static library at the same time on this system may cause export/import problems when using non contemporary GNU tools.])
 fi
-

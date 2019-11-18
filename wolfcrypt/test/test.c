@@ -24,6 +24,9 @@
     #include <config.h>
 #endif
 
+#ifndef WOLFSSL_USER_SETTINGS
+    #include <wolfssl/options.h>
+#endif
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/version.h>
 #include <wolfssl/wolfcrypt/wc_port.h>
@@ -199,6 +202,10 @@
     #ifdef HAVE_CAVIUM_OCTEON_SYNC
         #include <wolfssl/wolfcrypt/port/cavium/cavium_octeon_sync.h>
     #endif
+#endif
+
+#ifdef USE_ST_CSE_HSM
+    #include <wolfssl/wolfcrypt/port/st/stm32_ehsm.h>
 #endif
 
 #ifdef _MSC_VER
@@ -409,6 +416,9 @@ int blob_test(void);
 #ifdef WOLF_CRYPTO_CB
 int cryptocb_test(void);
 #endif
+#ifdef USE_ST_CSE_HSM
+int stehsm_test(void);
+#endif
 #ifdef WOLFSSL_CERT_PIV
 int certpiv_test(void);
 #endif
@@ -538,8 +548,16 @@ int wolfcrypt_test(void* args)
 #endif
 
 #if !defined(NO_BIG_INT)
-    if (CheckCtcSettings() != 1)
+    if (CheckCtcSettings() != 1) {
+        printf("Sizeof mismatch (build) %x != (run) %x\n",
+            CTC_SETTINGS, CheckRunTimeSettings());
+        /* do not cause a fatal error here, since cross-compiling test.c
+         * may have missing config.h which would not have SIZEOF_LONG or
+         * SIZEOF_LONG_LONG defined */
+    #if 0
         return err_sys("Build vs runtime math mismatch\n", -1000);
+    #endif
+    }
 
 #if defined(USE_FAST_MATH) && \
 	(!defined(NO_RSA) || !defined(NO_DH) || defined(HAVE_ECC))
@@ -1126,6 +1144,13 @@ initDefaultName();
         return err_sys("crypto callback test failed!\n", ret);
     else
         test_pass("crypto callback test passed!\n");
+#endif
+
+#ifdef USE_ST_CSE_HSM
+    if ( (ret = stehsm_test()) != 0)
+        return err_sys("ST eHSM test failed!\n", ret);
+    else
+        test_pass("ST eHSM test passed!\n");
 #endif
 
 #ifdef WOLFSSL_CERT_PIV
@@ -25638,6 +25663,15 @@ int cryptocb_test(void)
     return ret;
 }
 #endif /* WOLF_CRYPTO_CB */
+
+#ifdef USE_ST_CSE_HSM
+int stehsm_test(void)
+{
+    
+
+    return 0;
+}
+#endif
 
 #ifdef WOLFSSL_CERT_PIV
 int certpiv_test(void)
