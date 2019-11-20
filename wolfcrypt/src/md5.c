@@ -120,7 +120,7 @@ int wc_Md5Final(wc_Md5* md5, byte* hash)
     #define WC_HASH_DATA_ALIGNMENT 4
 #endif
 
-static int Transform(wc_Md5* md5, const byte* data)
+static int Transform(wc_Md5* md5, const word32* data)
 {
     int ret = wolfSSL_CryptHwMutexLock();
     if (ret == 0) {
@@ -134,29 +134,10 @@ static int Transform(wc_Md5* md5, const byte* data)
     return ret;
 }
 
-static int Transform_Len(wc_Md5* md5, const byte* data, word32 len)
+static int Transform_Len(wc_Md5* md5, const word32* data, word32 len)
 {
     int ret = wolfSSL_CryptHwMutexLock();
     if (ret == 0) {
-    #if defined(WC_HASH_DATA_ALIGNMENT) && WC_HASH_DATA_ALIGNMENT > 0
-        if ((size_t)data % WC_HASH_DATA_ALIGNMENT) {
-            /* data pointer is NOT aligned,
-             * so copy and perform one block at a time */
-            byte* local = (byte*)md5->buffer;
-            while (len >= WC_MD5_BLOCK_SIZE) {
-                XMEMCPY(local, data, WC_MD5_BLOCK_SIZE);
-            #ifdef FREESCALE_MMCAU_CLASSIC_SHA
-                cau_md5_hash_n(local, 1, (unsigned char*)md5->digest);
-            #else
-                MMCAU_MD5_HashN(local, 1, (uint32_t*)md5->digest);
-            #endif
-                data += WC_MD5_BLOCK_SIZE;
-                len  -= WC_MD5_BLOCK_SIZE;
-            }
-        }
-        else
-    #endif
-        {
 #ifdef FREESCALE_MMCAU_CLASSIC_SHA
         cau_md5_hash_n((byte*)data, len / WC_MD5_BLOCK_SIZE,
             (unsigned char*)md5->digest);
@@ -193,9 +174,8 @@ static int Transform_Len(wc_Md5* md5, const byte* data, word32 len)
 #define MD5STEP(f, w, x, y, z, data, s) \
         w = rotlFixed(w + f(x, y, z) + data, s) + x
 
-static int Transform(wc_Md5* md5, const byte* data)
+static int Transform(wc_Md5* md5, const word32* buffer)
 {
-    word32* buffer = (word32*)data;
     /* Copy context->state[] to working vars  */
     word32 a = md5->digest[0];
     word32 b = md5->digest[1];
@@ -378,7 +358,7 @@ int wc_Md5Update(wc_Md5* md5, const byte* data, word32 len)
             ByteReverseWords(md5->buffer, md5->buffer, WC_MD5_BLOCK_SIZE);
         #endif
 
-            ret = XTRANSFORM(md5, (const byte*)local);
+            ret = XTRANSFORM(md5, md5->buffer);
             if (ret != 0)
                 return ret;
 
@@ -392,13 +372,21 @@ int wc_Md5Update(wc_Md5* md5, const byte* data, word32 len)
     /* 64-1 = 0x3F (~ Inverted = 0xFFFFFFC0) */
     /* len (masked by 0xFFFFFFC0) returns block aligned length */
     blocksLen = len & ~(WC_MD5_BLOCK_SIZE-1);
-    if (blocksLen > 0) {
+    if (blocksLen > 0
+    #if defined(WC_HASH_DATA_ALIGNMENT) && WC_HASH_DATA_ALIGNMENT > 0
+        /* check if data pointer is aligned */
+        && ((size_t)data % WC_HASH_DATA_ALIGNMENT == 0)
+    #endif
+    ) {
+        /* data pointer is aligned and multiple of block size */
         /* Byte reversal performed in function if required. */
-        XTRANSFORM_LEN(md5, data, blocksLen);
+        XTRANSFORM_LEN(md5, (const word32*)data, blocksLen);
         data += blocksLen;
         len  -= blocksLen;
     }
-#else
+#endif
+
+    /* process remainder */
     while (len >= WC_MD5_BLOCK_SIZE) {
         word32* local32 = md5->buffer;
         /* optimization to avoid memcpy if data pointer is properly aligned */
@@ -420,9 +408,8 @@ int wc_Md5Update(wc_Md5* md5, const byte* data, word32 len)
         ByteReverseWords(local32, local32, WC_MD5_BLOCK_SIZE);
     #endif
 
-        ret = XTRANSFORM(md5, (const byte*)local32);
+        ret = XTRANSFORM(md5, (const word32*)local32);
     }
-#endif /* XTRANSFORM_LEN */
 
     /* save remainder */
     if (len > 0) {
@@ -461,7 +448,7 @@ int wc_Md5Final(wc_Md5* md5, byte* hash)
 #if defined(BIG_ENDIAN_ORDER) && !defined(FREESCALE_MMCAU_SHA)
         ByteReverseWords(md5->buffer, md5->buffer, WC_MD5_BLOCK_SIZE);
 #endif
-        XTRANSFORM(md5, local);
+        XTRANSFORM(md5, md5->buffer);
         md5->buffLen = 0;
     }
     XMEMSET(&local[md5->buffLen], 0, WC_MD5_PAD_SIZE - md5->buffLen);
@@ -481,7 +468,7 @@ int wc_Md5Final(wc_Md5* md5, byte* hash)
     XMEMCPY(&local[WC_MD5_PAD_SIZE + sizeof(word32)], &md5->hiLen, sizeof(word32));
 
     /* final transform and result to hash */
-    XTRANSFORM(md5, local);
+    XTRANSFORM(md5, md5->buffer);
 #ifdef BIG_ENDIAN_ORDER
     ByteReverseWords(md5->digest, md5->digest, WC_MD5_DIGEST_SIZE);
 #endif
