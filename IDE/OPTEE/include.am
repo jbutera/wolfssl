@@ -1,0 +1,7 @@
+# vim:ft=automake
+# included from Top Level Makefile.am
+# All paths should be given relative to the root
+
+include IDE/OPTEE/include/user_settings.h
+include IDE/OPTEE/sub.mk
+include IDE/OPTEE/README.md

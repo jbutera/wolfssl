@@ -155,6 +155,7 @@ int wc_RNG_GenerateByte(WC_RNG* rng, byte* b)
 #elif defined(WOLFSSL_PB)
 #elif defined(WOLFSSL_ZEPHYR)
 #elif defined(WOLFSSL_TELIT_M2MB)
+#elif defined(WOLFSSL_OPTEE_OS)
 #else
     /* include headers that may be needed to get good seed */
     #include <fcntl.h>
@@ -2289,7 +2290,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 #endif
     #include "r_bsp/platform.h"
     #include "r_tsip_rx_if.h"
-    
+
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     {
         int ret;
@@ -2297,7 +2298,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
         while (sz > 0) {
             uint32_t len = sizeof(buffer);
-            
+
             if (sz < len) {
                 len = sz;
             }
@@ -2312,8 +2313,8 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         }
         return ret;
     }
-    
-    
+
+
 #elif defined(CUSTOM_RAND_GENERATE_BLOCK)
     /* #define CUSTOM_RAND_GENERATE_BLOCK myRngFunc
      * extern int myRngFunc(byte* output, word32 sz);
@@ -2385,6 +2386,19 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
             }
             return 0;
         }
+
+#elif defined(WOLFSSL_OPTEE_OS)
+
+    #include <crypto/crypto.h> /* for hardware based RNG source */
+    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+    {
+        int ret = BAD_FUNC_ARG;
+        (void)os;
+        if (crypto_rng_read(output, sz) == TEE_SUCCESS) {
+            ret = 0;
+        }
+        return ret;
+    }
 
 #elif defined(NO_DEV_RANDOM)
 

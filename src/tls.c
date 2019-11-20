@@ -137,7 +137,7 @@ static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions);
                                 const byte *cr,const byte *sr,
                                 byte *ms/* out */);
     int tsip_generateSeesionKey(WOLFSSL *ssl);
-    int tsip_generateVerifyData(const byte *ms, const byte *side, 
+    int tsip_generateVerifyData(const byte *ms, const byte *side,
                                 const byte *handshake_hash,
                                 byte *hashes /* out */);
 #endif
@@ -1194,10 +1194,10 @@ int TLS_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz, int padSz,
     !defined(NO_WOLFSSL_RENESAS_TSIP_TLS_SESSION)
     if (tsip_useable(ssl)) {
         if (ssl->specs.hash_size == WC_SHA_DIGEST_SIZE)
-            ret = tsip_Sha1Hmac(ssl, myInner, WOLFSSL_TLS_HMAC_INNER_SZ, 
+            ret = tsip_Sha1Hmac(ssl, myInner, WOLFSSL_TLS_HMAC_INNER_SZ,
                                                         in, sz, digest, verify);
         else if (ssl->specs.hash_size == WC_SHA256_DIGEST_SIZE)
-            ret = tsip_Sha256Hmac(ssl, myInner, WOLFSSL_TLS_HMAC_INNER_SZ, 
+            ret = tsip_Sha256Hmac(ssl, myInner, WOLFSSL_TLS_HMAC_INNER_SZ,
                                                         in, sz, digest, verify);
         else
             ret = TSIP_MAC_DIGSZ_E;
@@ -6735,7 +6735,7 @@ static int TLSX_KeyShare_GenEccKey(WOLFSSL *ssl, KeyShareEntry* kse)
 #ifdef HAVE_ECC
     byte*    keyData = NULL;
     word32   dataSize;
-    byte*    keyPtr = NULL;
+    void*    keyPtr = NULL;
     word32   keySize;
     ecc_key* eccKey;
     word16   curveId;
@@ -6781,7 +6781,7 @@ static int TLSX_KeyShare_GenEccKey(WOLFSSL *ssl, KeyShareEntry* kse)
     }
 
     /* Allocate an ECC key to hold private key. */
-    keyPtr = (byte*)XMALLOC(sizeof(ecc_key), ssl->heap,
+    keyPtr = (void*)XMALLOC(sizeof(ecc_key), ssl->heap,
                                                       DYNAMIC_TYPE_PRIVATE_KEY);
     if (keyPtr == NULL) {
         WOLFSSL_MSG("EccTempKey Memory error");

@@ -120,6 +120,8 @@
         #include <errno.h>
     #elif defined(WOLFSSL_ZEPHYR)
         #include <net/socket.h>
+    #elif defined(WOLFSSL_OPTEE_OS)
+        
     #elif !defined(WOLFSSL_NO_SOCK)
         #include <sys/types.h>
         #include <errno.h>

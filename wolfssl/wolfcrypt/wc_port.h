@@ -154,6 +154,9 @@
         extern "C" {
     #endif
 
+#elif defined(WOLFSSL_OPTEE_OS)
+    /* optee-os kernel */
+
 #else
     #ifndef SINGLE_THREADED
         #define WOLFSSL_PTHREADS
@@ -634,6 +637,23 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
         #define WOLFSSL_CURRTIME_REMAP m2mb_xtime_bench
     #endif
     #define XGMTIME(c, t)   gmtime((c))
+    #define WOLFSSL_GMTIME
+    #define USE_WOLF_TM
+
+#elif defined(WOLFSSL_OPTEE_OS)
+    #include <kernel/tee_time.h>
+
+    typedef long time_t;
+    extern time_t optee_xtime(time_t * timer);
+    #define XTIME(tl) optee_xtime((tl))
+    #ifdef WOLFSSL_TLS13
+        extern time_t optee_xtime_ms(time_t * timer);
+        #define XTIME_MS(tl) optee_xtime_ms((tl))
+    #endif
+    #ifndef NO_CRYPT_BENCHMARK
+        extern double optee_xtime_bench(int reset);
+        #define WOLFSSL_CURRTIME_REMAP optee_xtime_bench
+    #endif
     #define WOLFSSL_GMTIME
     #define USE_WOLF_TM
 

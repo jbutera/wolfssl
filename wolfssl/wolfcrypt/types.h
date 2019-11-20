@@ -432,7 +432,7 @@
 
         #ifndef XSTRNCASECMP
         #if defined(MICROCHIP_PIC32) || defined(WOLFSSL_TIRTOS) || \
-                defined(WOLFSSL_ZEPHYR)
+                defined(WOLFSSL_ZEPHYR) || defined(WOLFSSL_OPTEE_OS)
             /* XC32 does not support strncasecmp, so use case sensitive one */
             #define XSTRNCASECMP(s1,s2,n) strncmp((s1),(s2),(n))
         #elif defined(USE_WINDOWS_API) || defined(FREERTOS_TCP_WINSIM)

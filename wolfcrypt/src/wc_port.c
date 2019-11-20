@@ -2147,6 +2147,43 @@ time_t wiced_pseudo_unix_epoch_time(time_t * timer)
     #endif /* !NO_CRYPT_BENCHMARK */
 #endif /* WOLFSSL_TELIT_M2MB */
 
+#if defined(WOLFSSL_OPTEE_OS)
+    time_t optee_xtime(time_t* timer)
+    {
+        time_t myTime = 0;
+        TEE_Time timeval;
+        (void)timer;
+        if (tee_time_get_sys_time(&timeval) == TEE_SUCCESS) {
+            myTime = timeval.seconds;
+        }
+        return myTime;
+    }
+    #ifdef WOLFSSL_TLS13
+    time_t optee_xtime_ms(time_t* timer)
+    {
+        time_t myTime = 0;
+        TEE_Time timeval;
+        (void)timer;
+        if (tee_time_get_sys_time(&timeval) == TEE_SUCCESS) {
+            myTime = timeval.seconds + timeval.millis;
+        }
+        return myTime;
+    }
+    #endif /* WOLFSSL_TLS13 */
+    #ifndef NO_CRYPT_BENCHMARK
+    double optee_xtime_bench(int reset)
+    {
+        double myTime = 0;
+        TEE_Time timeval;
+        (void)reset;
+        if (tee_time_get_sys_time(&timeval) == TEE_SUCCESS) {
+            myTime = (double)timeval.seconds + ((double)timeval.millis / 1000);
+        }
+        return myTime;
+    }
+    #endif /* !NO_CRYPT_BENCHMARK */
+#endif /* WOLFSSL_OPTEE_OS */
+
 #endif /* !NO_ASN_TIME */
 
 #ifndef WOLFSSL_LEANPSK
