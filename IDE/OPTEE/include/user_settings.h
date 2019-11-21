@@ -13,6 +13,8 @@ extern "C" {
 /* OPTEE-OS */
 #undef  WOLFSSL_OPTEE_OS
 #define WOLFSSL_OPTEE_OS
+/* Use custom math size */
+#define TEE_BIGINT_SIZE_CUSTOM
 
 /* No threading */
 #undef  SINGLE_THREADED
@@ -162,6 +164,7 @@ extern "C" {
 #if 1
     #define WOLFSSL_SP
     #define WOLFSSL_SP_SMALL      /* use smaller version of code */
+    #define WOLFSSL_SP_NEEDS_SIGN
     #define WOLFSSL_HAVE_SP_RSA
     #define WOLFSSL_HAVE_SP_DH
     #define WOLFSSL_HAVE_SP_ECC
@@ -331,6 +334,10 @@ extern "C" {
 #if 1
     #define HAVE_CHACHA
     #define HAVE_POLY1305
+
+    /* ensure ChaCha key is aligned */
+    #undef  XSTREAM_ALIGN
+    #define XSTREAM_ALIGN
 
     /* Needed for TLS */
     #undef  HAVE_ONE_TIME_AUTH

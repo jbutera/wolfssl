@@ -289,6 +289,21 @@ int sp_cmp(sp_int* a, sp_int* b)
     return ret;
 }
 
+
+/* Chek if a bit is set.
+ *
+ * a  SP integer.
+ * b  bit position to check.
+ * returns: 0=bit not set, 1=bit set.
+ */
+int sp_is_bit_set(sp_int* a, sp_int_digit b)
+{
+    if ((sp_int_digit)a->used < b/DIGIT_BIT)
+        return 0;
+
+    return (int)((a->dp[b/DIGIT_BIT] >> b%DIGIT_BIT) & (sp_int_digit)1);
+}
+
 /* Count the number of bits in the big number.
  *
  * a  SP integer.

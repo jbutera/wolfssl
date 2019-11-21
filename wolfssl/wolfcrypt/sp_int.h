@@ -144,6 +144,9 @@
 typedef struct sp_int {
     int used;
     int size;
+#ifdef WOLFSSL_SP_NEEDS_SIGN
+    int sign;
+#endif
     sp_int_digit dp[SP_INT_DIGITS];
 #ifdef HAVE_WOLF_BIGINT
     struct WC_BIGINT raw; /* unsigned binary (big endian) */
@@ -164,6 +167,7 @@ MP_API int sp_unsigned_bin_size(sp_int* a);
 MP_API int sp_read_unsigned_bin(sp_int* a, const byte* in, int inSz);
 MP_API int sp_read_radix(sp_int* a, const char* in, int radix);
 MP_API int sp_cmp(sp_int* a, sp_int* b);
+MP_API int sp_is_bit_set(sp_int* a, sp_int_digit b);
 MP_API int sp_count_bits(sp_int* a);
 MP_API int sp_leading_bit(sp_int* a);
 MP_API int sp_to_unsigned_bin(sp_int* a, byte* out);
@@ -212,6 +216,9 @@ MP_API void sp_rshb(sp_int* a, int n, sp_int* r);
 #define MP_MEM   -2
 #define MP_VAL   -3
 
+#define MP_ZPOS  0   /* positive integer */
+#define MP_NEG   1   /* negative */
+
 #define DIGIT_BIT  SP_WORD_SIZE
 
 #define CheckFastMathSettings() 1
@@ -231,6 +238,7 @@ MP_API void sp_rshb(sp_int* a, int n, sp_int* r);
 #define mp_unsigned_bin_size        sp_unsigned_bin_size
 #define mp_read_radix               sp_read_radix
 #define mp_cmp                      sp_cmp
+#define mp_is_bit_set               sp_is_bit_set
 #define mp_count_bits               sp_count_bits
 #define mp_leading_bit              sp_leading_bit
 #define mp_to_unsigned_bin          sp_to_unsigned_bin
@@ -268,4 +276,3 @@ MP_API void sp_rshb(sp_int* a, int n, sp_int* r);
 #endif
 
 #endif /* WOLF_CRYPT_SP_H */
-

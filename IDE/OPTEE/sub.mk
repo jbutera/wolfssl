@@ -76,12 +76,15 @@ srcs-y += $(addprefix wolfssl/src/, $(SRCS_TLS))
 
 # Kernel headers
 cflags-lib-y += -Icore/include
+cppflags$(sm) += -Icore/include
 
 # Build settings come from include/user_settings.h
 cflags-lib-y += -DWOLFSSL_USER_SETTINGS
+cppflags$(sm) += -DWOLFSSL_USER_SETTINGS
 
 #cflags-lib-y += -Wno-redundant-decls
 cflags-lib-y += -Wno-switch-default
 cflags-lib-y += -Wno-pedantic
 cflags-lib-y += -Wno-strict-aliasing
 cflags-lib-y += -Wno-aggregate-return
+cflags-lib-y += -Wno-cast-align
