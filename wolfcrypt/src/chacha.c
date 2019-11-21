@@ -145,10 +145,11 @@ static const word32 tau[4] = {0x61707865, 0x3120646e, 0x79622d36, 0x6b206574};
 int wc_Chacha_SetKey(ChaCha* ctx, const byte* key, word32 keySz)
 {
     const word32* constants;
-    const byte*   k;
-
 #ifdef XSTREAM_ALIGN
-    word32 alignKey[8];
+    word32 kAligned[CHACHA_MAX_KEY_SZ/sizeof(word32)];
+    word32* k;
+#else
+    byte* k;
 #endif
 
     if (ctx == NULL)
@@ -158,13 +159,13 @@ int wc_Chacha_SetKey(ChaCha* ctx, const byte* key, word32 keySz)
         return BAD_FUNC_ARG;
 
 #ifdef XSTREAM_ALIGN
-    if ((wolfssl_word)key % 4) {
+    if ((size_t)key % 4) {
         WOLFSSL_MSG("wc_ChachaSetKey unaligned key");
-        XMEMCPY(alignKey, key, keySz);
-        k = (byte*)alignKey;
+        XMEMCPY(kAligned, key, keySz);
+        k = kAligned;
     }
     else {
-        k = key;
+        k = (word32*)key;
     }
 #else
     k = key;
@@ -181,21 +182,40 @@ int wc_Chacha_SetKey(ChaCha* ctx, const byte* key, word32 keySz)
     printf("\n\n");
 #endif
 
+#ifdef XSTREAM_ALIGN
+    ctx->X[4] = LITTLE32(k[0]);
+    ctx->X[5] = LITTLE32(k[1]);
+    ctx->X[6] = LITTLE32(k[2]);
+    ctx->X[7] = LITTLE32(k[3]);
+#else
     ctx->X[4] = U8TO32_LITTLE(k +  0);
     ctx->X[5] = U8TO32_LITTLE(k +  4);
     ctx->X[6] = U8TO32_LITTLE(k +  8);
     ctx->X[7] = U8TO32_LITTLE(k + 12);
+#endif
     if (keySz == CHACHA_MAX_KEY_SZ) {
+    #ifdef XSTREAM_ALIGN
+        k += 16/sizeof(word32);
+    #else
         k += 16;
+    #endif
         constants = sigma;
     }
     else {
         constants = tau;
     }
+
+#ifdef XSTREAM_ALIGN
+    ctx->X[ 8] = LITTLE32(k[0]);
+    ctx->X[ 9] = LITTLE32(k[1]);
+    ctx->X[10] = LITTLE32(k[2]);
+    ctx->X[11] = LITTLE32(k[3]);
+#else
     ctx->X[ 8] = U8TO32_LITTLE(k +  0);
     ctx->X[ 9] = U8TO32_LITTLE(k +  4);
     ctx->X[10] = U8TO32_LITTLE(k +  8);
     ctx->X[11] = U8TO32_LITTLE(k + 12);
+#endif
     ctx->X[ 0] = constants[0];
     ctx->X[ 1] = constants[1];
     ctx->X[ 2] = constants[2];
