@@ -3760,7 +3760,7 @@ int mp_montgomery_calc_normalization(mp_int *a, mp_int *b)
     return MP_OKAY;
 }
 
-#endif /* WOLFSSL_KEYGEN || HAVE_ECC */
+#endif /* WOLFSSL_KEY_GEN || HAVE_ECC */
 
 
 #if defined(WC_MP_TO_RADIX) || !defined(NO_DH) || !defined(NO_DSA) || \
@@ -4306,17 +4306,79 @@ int mp_prime_is_prime_ex(mp_int* a, int t, int* result, WC_RNG* rng)
 #endif /* !NO_RSA || !NO_DSA || !NO_DH || WOLFSSL_KEY_GEN */
 
 
-#ifdef WOLFSSL_KEY_GEN
-
+#if defined(WOLFSSL_KEY_GEN) || defined(WOLFSSL_MATH_GCD)
 static int  fp_gcd(fp_int *a, fp_int *b, fp_int *c);
-static int  fp_lcm(fp_int *a, fp_int *b, fp_int *c);
-static int  fp_randprime(fp_int* N, int len, WC_RNG* rng, void* heap);
 
 int mp_gcd(fp_int *a, fp_int *b, fp_int *c)
 {
     return fp_gcd(a, b, c);
 }
 
+
+/* c = (a, b) */
+int fp_gcd(fp_int *a, fp_int *b, fp_int *c)
+{
+#ifndef WOLFSSL_SMALL_STACK
+   fp_int u[1], v[1], r[1];
+#else
+   fp_int *u, *v, *r;
+#endif
+
+   /* either zero than gcd is the largest */
+   if (fp_iszero (a) == FP_YES && fp_iszero (b) == FP_NO) {
+     fp_abs (b, c);
+     return FP_OKAY;
+   }
+   if (fp_iszero (a) == FP_NO && fp_iszero (b) == FP_YES) {
+     fp_abs (a, c);
+     return FP_OKAY;
+   }
+
+   /* optimized.  At this point if a == 0 then
+    * b must equal zero too
+    */
+   if (fp_iszero (a) == FP_YES) {
+     fp_zero(c);
+     return FP_OKAY;
+   }
+
+#ifdef WOLFSSL_SMALL_STACK
+   u = (fp_int*)XMALLOC(sizeof(fp_int) * 3, NULL, DYNAMIC_TYPE_BIGINT);
+   if (u == NULL) {
+       return FP_MEM;
+   }
+   v = &u[1]; r = &u[2];
+#endif
+
+   /* sort inputs */
+   if (fp_cmp_mag(a, b) != FP_LT) {
+      fp_init_copy(u, a);
+      fp_init_copy(v, b);
+   } else {
+      fp_init_copy(u, b);
+      fp_init_copy(v, a);
+   }
+
+   fp_init(r);
+   while (fp_iszero(v) == FP_NO) {
+      fp_mod(u, v, r);
+      fp_copy(v, u);
+      fp_copy(r, v);
+   }
+   fp_copy(u, c);
+
+#ifdef WOLFSSL_SMALL_STACK
+   XFREE(u, NULL, DYNAMIC_TYPE_BIGINT);
+#endif
+   return FP_OKAY;
+}
+
+#endif /* WOLFSSL_KEY_GEN || WOLFSSL_MATH_GCD */
+
+#ifdef WOLFSSL_KEY_GEN
+
+static int  fp_lcm(fp_int *a, fp_int *b, fp_int *c);
+static int  fp_randprime(fp_int* N, int len, WC_RNG* rng, void* heap);
 
 int mp_lcm(fp_int *a, fp_int *b, fp_int *c)
 {

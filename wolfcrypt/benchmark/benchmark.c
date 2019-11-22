@@ -666,7 +666,7 @@ static const char* bench_desc_words[][9] = {
 #endif
 
 #if (!defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || !defined(NO_DH) \
-                        || defined(WOLFSSL_KEYGEN) || defined(HAVE_ECC) \
+                        || defined(WOLFSSL_KEY_GEN) || defined(HAVE_ECC) \
                         || defined(HAVE_CURVE25519) || defined(HAVE_ED25519)
     #define HAVE_LOCAL_RNG
     static THREAD_LS_T WC_RNG rng;

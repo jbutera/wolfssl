@@ -4994,9 +4994,9 @@ LBL_T:
   mp_clear(&t2);
   return res;
 }
+#endif /* WOLFSSL_KEY_GEN */
 
-
-
+#if defined(WOLFSSL_KEY_GEN) || defined(WOLFSSL_MATH_GCD)
 /* Greatest Common Divisor using the binary method */
 int mp_gcd (mp_int * a, mp_int * b, mp_int * c)
 {
@@ -5081,7 +5081,7 @@ LBL_U:mp_clear (&u);
     return res;
 }
 
-#endif /* WOLFSSL_KEY_GEN */
+#endif /* WOLFSSL_KEY_GEN || WOLFSSL_MATH_GCD */
 
 
 #if !defined(NO_DSA) || defined(HAVE_ECC) || defined(WOLFSSL_KEY_GEN) || \
