@@ -533,11 +533,7 @@
 
     #ifndef CTYPE_USER
         #include <ctype.h>
-        #if defined(HAVE_ECC) || defined(HAVE_OCSP) || \
-            defined(WOLFSSL_KEY_GEN) || !defined(NO_DSA)
-            #define XTOUPPER(c)     toupper((c))
-            #define XISALPHA(c)     isalpha((c))
-        #endif
+
         /* needed by wolfSSL_check_domain_name() */
         #define XTOLOWER(c)      tolower((c))
     #endif

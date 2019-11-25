@@ -5094,6 +5094,11 @@ const char *mp_s_rmap = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ\
 #endif
 
 #if !defined(NO_DSA) || defined(HAVE_ECC)
+static char mp_char_to_upper(const char c)
+{
+    return (c >= 'a' && c <= 'z') ? c - 'a' + 'A' : c;
+}
+
 /* read a string [ASCII] in a given radix */
 int mp_read_radix (mp_int * a, const char *str, int radix)
 {
@@ -5127,7 +5132,7 @@ int mp_read_radix (mp_int * a, const char *str, int radix)
      * this allows numbers like 1AB and 1ab to represent the same  value
      * [e.g. in hex]
      */
-    ch = (radix <= 36) ? (char)XTOUPPER((unsigned char)*str) : *str;
+    ch = (radix <= 36) ? mp_char_to_upper(*str) : *str;
     for (y = 0; y < 64; y++) {
       if (ch == mp_s_rmap[y]) {
          break;

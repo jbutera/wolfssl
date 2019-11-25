@@ -4671,6 +4671,11 @@ static int fp_read_radix_16(fp_int *a, const char *str)
 }
 #endif
 
+static char fp_char_to_upper(const char c)
+{
+    return (c >= 'a' && c <= 'z') ? c - 'a' + 'A' : c;
+}
+
 static int fp_read_radix(fp_int *a, const char *str, int radix)
 {
   int     y, neg;
@@ -4705,7 +4710,7 @@ static int fp_read_radix(fp_int *a, const char *str, int radix)
      * this allows numbers like 1AB and 1ab to represent the same  value
      * [e.g. in hex]
      */
-    ch = (char)((radix <= 36) ? XTOUPPER((unsigned char)*str) : *str);
+    ch = (radix <= 36) ? fp_char_to_upper(*str) : *str;
     for (y = 0; y < 64; y++) {
       if (ch == fp_s_rmap[y]) {
          break;
