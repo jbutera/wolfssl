@@ -168,7 +168,7 @@ int wc_Chacha_SetKey(ChaCha* ctx, const byte* key, word32 keySz)
         k = (word32*)key;
     }
 #else
-    k = key;
+    k = (byte*)key;
 #endif /* XSTREAM_ALIGN */
 
 #ifdef CHACHA_AEAD_TEST
