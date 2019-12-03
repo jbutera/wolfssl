@@ -630,7 +630,7 @@ TEE_Result crypto_aes_gcm_dec_final(void *ctx, const uint8_t *src_data,
 	TEE_Result res = TEE_ERROR_BAD_STATE;
 	int wcres;
 	uint8_t dst_tag[TEE_GCM_TAG_MAX_LENGTH];
-	unsigned long ltc_tag_len = tag_len;
+	unsigned long wctag_len = tag_len;
 
 	if (tag_len == 0)
 		return TEE_ERROR_SHORT_BUFFER;
@@ -644,7 +644,7 @@ TEE_Result crypto_aes_gcm_dec_final(void *ctx, const uint8_t *src_data,
 		return res;
 
 	/* Finalize the authentication */
-	wcres = gcm_done(&gcm->ctx, dst_tag, &ltc_tag_len);
+	wcres = gcm_done(&gcm->ctx, dst_tag, &wctag_len);
 	if (wcres != 0)
 		return TEE_ERROR_BAD_STATE;
 
@@ -679,12 +679,12 @@ static bool bn_alloc_max(struct bignum **s)
 	return *s;
 }
 
-static TEE_Result __maybe_unused convert_ltc_verify_status(int wcres,
-							   int ltc_stat)
+static TEE_Result __maybe_unused convert_verify_status(int wcres,
+							   int stat)
 {
 	switch (wcres) {
 	case 0:
-		if (ltc_stat == 1)
+		if (stat == 1)
 			return TEE_SUCCESS;
 		else
 			return TEE_ERROR_SIGNATURE_INVALID;
@@ -762,36 +762,37 @@ TEE_Result crypto_acipher_gen_rsa_key(struct rsa_keypair *key, size_t key_size)
 	long e;
 
 	/* get the public exponent */
-    wcres = mp_to_unsigned_bin_len(&key->e, &e, sizeof(e));
+    wcres = mp_to_unsigned_bin_len((mp_int*)key->e, (byte*)&e, sizeof(e));
 
 	/* Generate a temporary RSA key */
-    wc_InitRng(&rng)
+    wc_InitRng(&rng);
     wcres = wc_MakeRsaKey(&tmp_key, key_size, e, &rng);
 	if (wcres != 0) {
 		res = TEE_ERROR_BAD_PARAMETERS;
-	} else if ((size_t)mp_count_bits(&tmp_key.N) != key_size) {
+	} else if ((size_t)mp_count_bits(&tmp_key.n) != key_size) {
 		wc_FreeRsaKey(&tmp_key);
 		res = TEE_ERROR_BAD_PARAMETERS;
 	} else {
 		/* Copy the key */
-		mp_copy(&tmp_key.e,  &key->e);
-		mp_copy(&tmp_key.d,  &key->d);
-		mp_copy(&tmp_key.N,  &key->n);
-		mp_copy(&tmp_key.p,  &key->p);
-		mp_copy(&tmp_key.q,  &key->q);
-		mp_copy(&tmp_key.qP, &key->qp);
-		mp_copy(&tmp_key.dP, &key->dp);
-		mp_copy(&tmp_key.dQ, &key->dq);
+		mp_copy(&tmp_key.e,  (mp_int*)key->e);
+		mp_copy(&tmp_key.d,  (mp_int*)key->d);
+		mp_copy(&tmp_key.n,  (mp_int*)key->n);
+		mp_copy(&tmp_key.p,  (mp_int*)key->p);
+		mp_copy(&tmp_key.q,  (mp_int*)key->q);
+		mp_copy(&tmp_key.u,  (mp_int*)key->qp);
+		mp_copy(&tmp_key.dP, (mp_int*)key->dp);
+		mp_copy(&tmp_key.dQ, (mp_int*)key->dq);
 
 		/* Free the temporary key */
 		wc_FreeRsaKey(&tmp_key);
 		res = TEE_SUCCESS;
 	}
+    wc_FreeRng(&rng);
 
 	return res;
 }
 
-static TEE_Result rsadorep(rsa_key *ltc_key, const uint8_t *src,
+static TEE_Result rsadorep(RsaKey *key, const uint8_t *src,
 			   size_t src_len, uint8_t *dst, size_t *dst_len)
 {
 	TEE_Result res = TEE_SUCCESS;
@@ -811,8 +812,8 @@ static TEE_Result rsadorep(rsa_key *ltc_key, const uint8_t *src,
 		goto out;
 	}
 
-	wcres = rsa_exptmod(src, src_len, buf, &blen, ltc_key->type,
-			      ltc_key);
+	wcres = rsa_exptmod(src, src_len, buf, &blen, key->type,
+			      key);
 	switch (wcres) {
 	case CRYPT_PK_NOT_PRIVATE:
 	case CRYPT_PK_INVALID_TYPE:
@@ -857,13 +858,14 @@ TEE_Result crypto_acipher_rsanopad_encrypt(struct rsa_public_key *key,
 					   uint8_t *dst, size_t *dst_len)
 {
 	TEE_Result res;
-	rsa_key ltc_key = { 0, };
+	RsaKey wckey;
 
-	ltc_key.type = PK_PUBLIC;
-	ltc_key.e = key->e;
-	ltc_key.N = key->n;
+    wc_InitRsaKey(&wckey, NULL);
+	wckey.type = RSA_PUBLIC_ENCRYPT;
+	wckey.e = key->e;
+	wckey.N = key->n;
 
-	res = rsadorep(&ltc_key, src, src_len, dst, dst_len);
+	res = rsadorep(&wckey, src, src_len, dst, dst_len);
 	return res;
 }
 
@@ -872,21 +874,22 @@ TEE_Result crypto_acipher_rsanopad_decrypt(struct rsa_keypair *key,
 					   uint8_t *dst, size_t *dst_len)
 {
 	TEE_Result res;
-	rsa_key ltc_key = { 0, };
+	RsaKey wckey;
 
-	ltc_key.type = PK_PRIVATE;
-	ltc_key.e = key->e;
-	ltc_key.N = key->n;
-	ltc_key.d = key->d;
+    wc_InitRsaKey(&wckey, NULL);
+	wckey.type = RSA_PRIVATE_DECRYPT;
+	wckey.e = key->e;
+	wckey.n = key->n;
+	wckey.d = key->d;
 	if (key->p && crypto_bignum_num_bytes(key->p)) {
-		ltc_key.p = key->p;
-		ltc_key.q = key->q;
-		ltc_key.qP = key->qp;
-		ltc_key.dP = key->dp;
-		ltc_key.dQ = key->dq;
+		wckey.p = key->p;
+		wckey.q = key->q;
+		wckey.u = key->qp;
+		wckey.dP = key->dp;
+		wckey.dQ = key->dq;
 	}
 
-	res = rsadorep(&ltc_key, src, src_len, dst, dst_len);
+	res = rsadorep(&wckey, src, src_len, dst, dst_len);
 	return res;
 }
 
@@ -898,20 +901,21 @@ TEE_Result crypto_acipher_rsaes_decrypt(uint32_t algo, struct rsa_keypair *key,
 	TEE_Result res = TEE_SUCCESS;
 	void *buf = NULL;
 	unsigned long blen;
-	int hashtype, wcres, ltc_stat, ltc_rsa_algo;
+	int hashtype, wcres, stat, rsa_algo;
 	size_t mod_size;
-	rsa_key ltc_key = { 0, };
+	RsaKey wckey;
 
-	ltc_key.type = PK_PRIVATE;
-	ltc_key.e = key->e;
-	ltc_key.d = key->d;
-	ltc_key.N = key->n;
+    wc_InitRsaKey(&wckey, NULL);
+	wckey.type = RSA_PRIVATE_DECRYPT;
+	wckey.e = key->e;
+	wckey.d = key->d;
+	wckey.n = key->n;
 	if (key->p && crypto_bignum_num_bytes(key->p)) {
-		ltc_key.p = key->p;
-		ltc_key.q = key->q;
-		ltc_key.qP = key->qp;
-		ltc_key.dP = key->dp;
-		ltc_key.dQ = key->dq;
+		wckey.p = key->p;
+		wckey.q = key->q;
+		wckey.u = key->qp;
+		wckey.dP = key->dp;
+		wckey.dQ = key->dq;
 	}
 
 	/* Get the algorithm */
@@ -927,13 +931,13 @@ TEE_Result crypto_acipher_rsaes_decrypt(uint32_t algo, struct rsa_keypair *key,
 	 * decrypt. We know the upper bound though.
 	 */
 	if (algo == TEE_ALG_RSAES_PKCS1_V1_5) {
-		mod_size = ltc_mp.unsigned_size((void *)(ltc_key.N));
+		mod_size = mp_unsigned_size(&wckey.n));
 		blen = mod_size - 11;
-		ltc_rsa_algo = LTC_PKCS_1_V1_5;
+		rsa_algo = LTC_PKCS_1_V1_5;
 	} else {
 		/* Decoded message is always shorter than encrypted message */
 		blen = src_len;
-		ltc_rsa_algo = LTC_PKCS_1_OAEP;
+		rsa_algo = LTC_PKCS_1_OAEP;
 	}
 
 	buf = malloc(blen);
@@ -944,8 +948,8 @@ TEE_Result crypto_acipher_rsaes_decrypt(uint32_t algo, struct rsa_keypair *key,
 
 	wcres = rsa_decrypt_key_ex(src, src_len, buf, &blen,
 				     ((label_len == 0) ? 0 : label), label_len,
-				     hashtype, ltc_rsa_algo, &ltc_stat,
-				     &ltc_key);
+				     hashtype, rsa_algo, &stat,
+				     &wckey);
 	switch (wcres) {
 	case CRYPT_PK_INVALID_PADDING:
 	case CRYPT_INVALID_PACKET:
@@ -961,10 +965,10 @@ TEE_Result crypto_acipher_rsaes_decrypt(uint32_t algo, struct rsa_keypair *key,
 		res = TEE_ERROR_GENERIC;
 		goto out;
 	}
-	if (ltc_stat != 1) {
+	if (stat != 1) {
 		/* This will result in a panic */
 		EMSG("rsa_decrypt_key_ex() returned %d and %d\n",
-		     wcres, ltc_stat);
+		     wcres, stat);
 		res = TEE_ERROR_GENERIC;
 		goto out;
 	}
@@ -994,14 +998,15 @@ TEE_Result crypto_acipher_rsaes_encrypt(uint32_t algo,
 {
 	TEE_Result res;
 	uint32_t mod_size;
-	int hashtype, wcres, ltc_rsa_algo;
-	rsa_key ltc_key = {
-		.type = PK_PUBLIC,
-		.e = key->e,
-		.N = key->n
-	};
+	int hashtype, wcres, rsa_algo;
+	RsaKey wckey;
 
-	mod_size =  ltc_mp.unsigned_size((void *)(ltc_key.N));
+    wc_InitRsaKey(&wckey, NULL);
+	wckey.type = RSA_PUBLIC_ENCRYPT,
+	wckey.e = key->e,
+	wckey.n = key->n
+
+	mod_size =  mp_unsigned_size(&wckey.n);
 	if (*dst_len < mod_size) {
 		*dst_len = mod_size;
 		res = TEE_ERROR_SHORT_BUFFER;
@@ -1015,14 +1020,14 @@ TEE_Result crypto_acipher_rsaes_encrypt(uint32_t algo,
 		goto out;
 
 	if (algo == TEE_ALG_RSAES_PKCS1_V1_5)
-		ltc_rsa_algo = LTC_PKCS_1_V1_5;
+		rsa_algo = LTC_PKCS_1_V1_5;
 	else
-		ltc_rsa_algo = LTC_PKCS_1_OAEP;
+		rsa_algo = LTC_PKCS_1_OAEP;
 
 	wcres = rsa_encrypt_key_ex(src, src_len, dst,
 				     (unsigned long *)(dst_len), label,
 				     label_len, NULL, find_prng("prng_mpa"),
-				     hashtype, ltc_rsa_algo, &ltc_key);
+				     hashtype, rsa_algo, &wckey);
 	switch (wcres) {
 	case CRYPT_PK_INVALID_PADDING:
 	case CRYPT_INVALID_PACKET:
@@ -1050,25 +1055,25 @@ TEE_Result crypto_acipher_rsassa_sign(uint32_t algo, struct rsa_keypair *key,
 {
 	TEE_Result res;
 	size_t hash_size, mod_size;
-	int wcres, ltc_rsa_algo, hashtype;
-	unsigned long ltc_sig_len;
-	rsa_key ltc_key = { 0, };
+	int wcres, wcrsa_algo, hashtype;
+	unsigned long wcsig_len;
+    RsaKey wckey;
 
-	ltc_key.type = PK_PRIVATE;
-	ltc_key.e = key->e;
-	ltc_key.N = key->n;
-	ltc_key.d = key->d;
+    wc_InitRsaKey(&wckey, NULL);
+	wckey.e = key->e,
+	wckey.n = key->n
+    wckey.d = key->d;
 	if (key->p && crypto_bignum_num_bytes(key->p)) {
-		ltc_key.p = key->p;
-		ltc_key.q = key->q;
-		ltc_key.qP = key->qp;
-		ltc_key.dP = key->dp;
-		ltc_key.dQ = key->dq;
+		wckey.p = key->p;
+		wckey.q = key->q;
+		wckey.u = key->qp;
+		wckey.dP = key->dp;
+		wckey.dQ = key->dq;
 	}
 
 	switch (algo) {
 	case TEE_ALG_RSASSA_PKCS1_V1_5:
-		ltc_rsa_algo = LTC_PKCS_1_V1_5_NA1;
+		wcrsa_algo = LTC_PKCS_1_V1_5_NA1;
 		break;
 	case TEE_ALG_RSASSA_PKCS1_V1_5_MD5:
 	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA1:
@@ -1076,21 +1081,21 @@ TEE_Result crypto_acipher_rsassa_sign(uint32_t algo, struct rsa_keypair *key,
 	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA256:
 	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA384:
 	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA512:
-		ltc_rsa_algo = LTC_PKCS_1_V1_5;
+		wcrsa_algo = LTC_PKCS_1_V1_5;
 		break;
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA1:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA224:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA256:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA384:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA512:
-		ltc_rsa_algo = LTC_PKCS_1_PSS;
+		wcrsa_algo = LTC_PKCS_1_PSS;
 		break;
 	default:
 		res = TEE_ERROR_BAD_PARAMETERS;
 		goto err;
 	}
 
-	if (ltc_rsa_algo != LTC_PKCS_1_V1_5_NA1) {
+	if (wcrsa_algo != LTC_PKCS_1_V1_5_NA1) {
 		wcres = tee_algo_to_hashtype(algo, &hashtype);
 		if (wcres != 0) {
 			res = TEE_ERROR_BAD_PARAMETERS;
@@ -1108,7 +1113,7 @@ TEE_Result crypto_acipher_rsassa_sign(uint32_t algo, struct rsa_keypair *key,
 		}
 	}
 
-	mod_size = ltc_mp.unsigned_size((void *)(ltc_key.N));
+	mod_size = mp.unsigned_size(&wckey.n);
 
 	if (*sig_len < mod_size) {
 		*sig_len = mod_size;
@@ -1116,13 +1121,13 @@ TEE_Result crypto_acipher_rsassa_sign(uint32_t algo, struct rsa_keypair *key,
 		goto err;
 	}
 
-	ltc_sig_len = mod_size;
+	sig_len = mod_size;
 
-	wcres = rsa_sign_hash_ex(msg, msg_len, sig, &ltc_sig_len,
-				   ltc_rsa_algo, NULL, find_prng("prng_mpa"),
-				   hashtype, salt_len, &ltc_key);
+	wcres = rsa_sign_hash_ex(msg, msg_len, sig, &wcsig_len,
+				   wcrsa_algo, NULL, find_prng("prng_mpa"),
+				   hashtype, salt_len, &wckey);
 
-	*sig_len = ltc_sig_len;
+	*sig_len = wcsig_len;
 
 	if (wcres != 0) {
 		res = TEE_ERROR_BAD_PARAMETERS;
@@ -1143,12 +1148,13 @@ TEE_Result crypto_acipher_rsassa_verify(uint32_t algo,
 	TEE_Result res;
 	uint32_t bigint_size;
 	size_t hash_size;
-	int stat, hashtype, wcres, ltc_rsa_algo;
-	rsa_key ltc_key = {
-		.type = PK_PUBLIC,
-		.e = key->e,
-		.N = key->n
-	};
+	int stat, hashtype, wcres, wcrsa_algo;
+    RsaKey wckey;
+
+    wc_InitRsaKey(&wckey, NULL);
+	wckey.type = RSA_PUBLIC_ENCRYPT,
+	wckey.e = key->e,
+	wckey.n = key->n
 
 	if (algo != TEE_ALG_RSASSA_PKCS1_V1_5) {
 		res = tee_hash_get_digest_size(TEE_DIGEST_HASH_TO_ALGO(algo),
@@ -1162,7 +1168,7 @@ TEE_Result crypto_acipher_rsassa_verify(uint32_t algo,
 		}
 	}
 
-	bigint_size = ltc_mp.unsigned_size(ltc_key.N);
+	bigint_size = mp_unsigned_size(&key.n);
 	if (sig_len < bigint_size) {
 		res = TEE_ERROR_SIGNATURE_INVALID;
 		goto err;
@@ -1177,7 +1183,7 @@ TEE_Result crypto_acipher_rsassa_verify(uint32_t algo,
 
 	switch (algo) {
 	case TEE_ALG_RSASSA_PKCS1_V1_5:
-		ltc_rsa_algo = LTC_PKCS_1_V1_5_NA1;
+		wcrsa_algo = LTC_PKCS_1_V1_5_NA1;
 		break;
 	case TEE_ALG_RSASSA_PKCS1_V1_5_MD5:
 	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA1:
@@ -1185,224 +1191,28 @@ TEE_Result crypto_acipher_rsassa_verify(uint32_t algo,
 	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA256:
 	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA384:
 	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA512:
-		ltc_rsa_algo = LTC_PKCS_1_V1_5;
+		wcrsa_algo = LTC_PKCS_1_V1_5;
 		break;
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA1:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA224:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA256:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA384:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA512:
-		ltc_rsa_algo = LTC_PKCS_1_PSS;
+		wcrsa_algo = LTC_PKCS_1_PSS;
 		break;
 	default:
 		res = TEE_ERROR_BAD_PARAMETERS;
 		goto err;
 	}
 
-	wcres = rsa_verify_hash_ex(sig, sig_len, msg, msg_len, ltc_rsa_algo,
-				     hashtype, salt_len, &stat, &ltc_key);
-	res = convert_ltc_verify_status(wcres, stat);
+	wcres = rsa_verify_hash_ex(sig, sig_len, msg, msg_len, wcrsa_algo,
+				     hashtype, salt_len, &stat, &wckey);
+	res = convert_verify_status(wcres, stat);
 err:
 	return res;
 }
 
 #endif /* CFG_CRYPTO_RSA */
-
-#if defined(CFG_CRYPTO_DSA)
-
-TEE_Result crypto_acipher_alloc_dsa_keypair(struct dsa_keypair *s,
-					    size_t key_size_bits __unused)
-{
-	memset(s, 0, sizeof(*s));
-	if (!bn_alloc_max(&s->g)) {
-		return TEE_ERROR_OUT_OF_MEMORY;
-	}
-
-	if (!bn_alloc_max(&s->p))
-		goto err;
-	if (!bn_alloc_max(&s->q))
-		goto err;
-	if (!bn_alloc_max(&s->y))
-		goto err;
-	if (!bn_alloc_max(&s->x))
-		goto err;
-	return TEE_SUCCESS;
-err:
-	crypto_bignum_free(s->g);
-	crypto_bignum_free(s->p);
-	crypto_bignum_free(s->q);
-	crypto_bignum_free(s->y);
-	return TEE_ERROR_OUT_OF_MEMORY;
-}
-
-TEE_Result crypto_acipher_alloc_dsa_public_key(struct dsa_public_key *s,
-					       size_t key_size_bits __unused)
-{
-	memset(s, 0, sizeof(*s));
-	if (!bn_alloc_max(&s->g)) {
-		return TEE_ERROR_OUT_OF_MEMORY;
-	}
-
-	if (!bn_alloc_max(&s->p))
-		goto err;
-	if (!bn_alloc_max(&s->q))
-		goto err;
-	if (!bn_alloc_max(&s->y))
-		goto err;
-	return TEE_SUCCESS;
-err:
-	crypto_bignum_free(s->g);
-	crypto_bignum_free(s->p);
-	crypto_bignum_free(s->q);
-	return TEE_ERROR_OUT_OF_MEMORY;
-}
-
-TEE_Result crypto_acipher_gen_dsa_key(struct dsa_keypair *key, size_t key_size)
-{
-	TEE_Result res;
-	dsa_key ltc_tmp_key;
-	size_t group_size, modulus_size = key_size/8;
-	int wcres;
-
-	if (modulus_size <= 128)
-		group_size = 20;
-	else if (modulus_size <= 256)
-		group_size = 30;
-	else if (modulus_size <= 384)
-		group_size = 35;
-	else
-		group_size = 40;
-
-	/* Generate the DSA key */
-	wcres = dsa_make_key(NULL, find_prng("prng_mpa"), group_size,
-			       modulus_size, &ltc_tmp_key);
-	if (wcres != 0) {
-		res = TEE_ERROR_BAD_PARAMETERS;
-	} else if ((size_t)mp_count_bits(ltc_tmp_key.p) != key_size) {
-		dsa_free(&ltc_tmp_key);
-		res = TEE_ERROR_BAD_PARAMETERS;
-	} else {
-		/* Copy the key */
-		ltc_mp.copy(ltc_tmp_key.g, key->g);
-		ltc_mp.copy(ltc_tmp_key.p, key->p);
-		ltc_mp.copy(ltc_tmp_key.q, key->q);
-		ltc_mp.copy(ltc_tmp_key.y, key->y);
-		ltc_mp.copy(ltc_tmp_key.x, key->x);
-
-		/* Free the tempory key */
-		dsa_free(&ltc_tmp_key);
-		res = TEE_SUCCESS;
-	}
-	return res;
-}
-
-TEE_Result crypto_acipher_dsa_sign(uint32_t algo, struct dsa_keypair *key,
-				   const uint8_t *msg, size_t msg_len,
-				   uint8_t *sig, size_t *sig_len)
-{
-	TEE_Result res;
-	size_t hash_size;
-	int wcres;
-	void *r, *s;
-	dsa_key ltc_key = {
-		.type = PK_PRIVATE,
-		.qord = mp_unsigned_bin_size(key->g),
-		.g = key->g,
-		.p = key->p,
-		.q = key->q,
-		.y = key->y,
-		.x = key->x,
-	};
-
-	if (algo != TEE_ALG_DSA_SHA1 &&
-	    algo != TEE_ALG_DSA_SHA224 &&
-	    algo != TEE_ALG_DSA_SHA256) {
-		res = TEE_ERROR_NOT_IMPLEMENTED;
-		goto err;
-	}
-
-	res = tee_hash_get_digest_size(TEE_DIGEST_HASH_TO_ALGO(algo),
-				       &hash_size);
-	if (res != TEE_SUCCESS)
-		goto err;
-	if (mp_unsigned_bin_size(ltc_key.q) < hash_size)
-		hash_size = mp_unsigned_bin_size(ltc_key.q);
-	if (msg_len != hash_size) {
-		res = TEE_ERROR_SECURITY;
-		goto err;
-	}
-
-	if (*sig_len < 2 * mp_unsigned_bin_size(ltc_key.q)) {
-		*sig_len = 2 * mp_unsigned_bin_size(ltc_key.q);
-		res = TEE_ERROR_SHORT_BUFFER;
-		goto err;
-	}
-
-	wcres = mp_init_multi(&r, &s, NULL);
-	if (wcres != 0) {
-		res = TEE_ERROR_OUT_OF_MEMORY;
-		goto err;
-	}
-
-	wcres = dsa_sign_hash_raw(msg, msg_len, r, s, NULL,
-				    find_prng("prng_mpa"), &ltc_key);
-
-	if (wcres == 0) {
-		*sig_len = 2 * mp_unsigned_bin_size(ltc_key.q);
-		memset(sig, 0, *sig_len);
-		mp_to_unsigned_bin(r, (uint8_t *)sig + *sig_len/2 -
-				   mp_unsigned_bin_size(r));
-		mp_to_unsigned_bin(s, (uint8_t *)sig + *sig_len -
-				   mp_unsigned_bin_size(s));
-		res = TEE_SUCCESS;
-	} else {
-		res = TEE_ERROR_GENERIC;
-	}
-
-	mp_clear_multi(r, s, NULL);
-
-err:
-	return res;
-}
-
-TEE_Result crypto_acipher_dsa_verify(uint32_t algo, struct dsa_public_key *key,
-				     const uint8_t *msg, size_t msg_len,
-				     const uint8_t *sig, size_t sig_len)
-{
-	TEE_Result res;
-	int ltc_stat, wcres;
-	void *r, *s;
-	dsa_key ltc_key = {
-		.type = PK_PUBLIC,
-		.qord = mp_unsigned_bin_size(key->g),
-		.g = key->g,
-		.p = key->p,
-		.q = key->q,
-		.y = key->y
-	};
-
-	if (algo != TEE_ALG_DSA_SHA1 &&
-	    algo != TEE_ALG_DSA_SHA224 &&
-	    algo != TEE_ALG_DSA_SHA256) {
-		res = TEE_ERROR_NOT_IMPLEMENTED;
-		goto err;
-	}
-
-	wcres = mp_init_multi(&r, &s, NULL);
-	if (wcres != 0) {
-		res = TEE_ERROR_OUT_OF_MEMORY;
-		goto err;
-	}
-	mp_read_unsigned_bin(r, (uint8_t *)sig, sig_len/2);
-	mp_read_unsigned_bin(s, (uint8_t *)sig + sig_len/2, sig_len/2);
-	wcres = dsa_verify_hash_raw(r, s, msg, msg_len, &ltc_stat, &ltc_key);
-	mp_clear_multi(r, s, NULL);
-	res = convert_ltc_verify_status(wcres, ltc_stat);
-err:
-	return res;
-}
-
-#endif /* CFG_CRYPTO_DSA */
 
 #if defined(CFG_CRYPTO_DH)
 
