@@ -797,7 +797,7 @@ static TEE_Result rsadorep(RsaKey *key, const uint8_t *src,
 {
 	TEE_Result res = TEE_SUCCESS;
 	uint8_t *buf = NULL;
-	unsigned long blen, offset;
+	word32 blen, offset;
 	int wcres;
 
 	/*
@@ -812,21 +812,8 @@ static TEE_Result rsadorep(RsaKey *key, const uint8_t *src,
 		goto out;
 	}
 
-	wcres = rsa_exptmod(src, src_len, buf, &blen, key->type,
-			      key);
-	switch (wcres) {
-	case CRYPT_PK_NOT_PRIVATE:
-	case CRYPT_PK_INVALID_TYPE:
-	case CRYPT_PK_INVALID_SIZE:
-	case CRYPT_INVALID_PACKET:
-		EMSG("rsa_exptmod() returned %d\n", wcres);
-		res = TEE_ERROR_BAD_PARAMETERS;
-		goto out;
-	case 0:
-		break;
-	default:
-		/* This will result in a panic */
-		EMSG("rsa_exptmod() returned %d\n", wcres);
+	wcres = wc_RsaFunction(src, src_len, buf, &blen, key->type, key, NULL);
+    if (wcres != 0) {
 		res = TEE_ERROR_GENERIC;
 		goto out;
 	}
@@ -861,9 +848,11 @@ TEE_Result crypto_acipher_rsanopad_encrypt(struct rsa_public_key *key,
 	RsaKey wckey;
 
     wc_InitRsaKey(&wckey, NULL);
-	wckey.type = RSA_PUBLIC_ENCRYPT;
-	wckey.e = key->e;
-	wckey.N = key->n;
+    wckey.type = RSA_PUBLIC;
+
+    /* Copy the key */
+    mp_copy((mp_int*)key->e, &wckey.e);
+    mp_copy((mp_int*)key->n, &wckey.n);
 
 	res = rsadorep(&wckey, src, src_len, dst, dst_len);
 	return res;
@@ -877,16 +866,16 @@ TEE_Result crypto_acipher_rsanopad_decrypt(struct rsa_keypair *key,
 	RsaKey wckey;
 
     wc_InitRsaKey(&wckey, NULL);
-	wckey.type = RSA_PRIVATE_DECRYPT;
-	wckey.e = key->e;
-	wckey.n = key->n;
-	wckey.d = key->d;
+    wckey.type = RSA_PRIVATE;
+    mp_copy((mp_int*)key->e, &wckey.e);
+    mp_copy((mp_int*)key->n, &wckey.n);
+    mp_copy((mp_int*)key->d, &wckey.d);
 	if (key->p && crypto_bignum_num_bytes(key->p)) {
-		wckey.p = key->p;
-		wckey.q = key->q;
-		wckey.u = key->qp;
-		wckey.dP = key->dp;
-		wckey.dQ = key->dq;
+        mp_copy((mp_int*)key->p, &wckey.p);
+        mp_copy((mp_int*)key->q, &wckey.p);
+        mp_copy((mp_int*)key->qp, &wckey.u);
+        mp_copy((mp_int*)key->dp, &wckey.dP);
+        mp_copy((mp_int*)key->dq, &wckey.dQ);
 	}
 
 	res = rsadorep(&wckey, src, src_len, dst, dst_len);
@@ -901,21 +890,22 @@ TEE_Result crypto_acipher_rsaes_decrypt(uint32_t algo, struct rsa_keypair *key,
 	TEE_Result res = TEE_SUCCESS;
 	void *buf = NULL;
 	unsigned long blen;
-	int hashtype, wcres, stat, rsa_algo;
+	int wcres, stat, rsa_algo;
+    enum wc_HashType hashtype;
 	size_t mod_size;
 	RsaKey wckey;
 
     wc_InitRsaKey(&wckey, NULL);
-	wckey.type = RSA_PRIVATE_DECRYPT;
-	wckey.e = key->e;
-	wckey.d = key->d;
-	wckey.n = key->n;
+    wckey.type = RSA_PRIVATE;
+    mp_copy((mp_int*)key->e, &wckey.e);
+    mp_copy((mp_int*)key->n, &wckey.n);
+    mp_copy((mp_int*)key->d, &wckey.d);
 	if (key->p && crypto_bignum_num_bytes(key->p)) {
-		wckey.p = key->p;
-		wckey.q = key->q;
-		wckey.u = key->qp;
-		wckey.dP = key->dp;
-		wckey.dQ = key->dq;
+        mp_copy((mp_int*)key->p, &wckey.p);
+        mp_copy((mp_int*)key->q, &wckey.p);
+        mp_copy((mp_int*)key->qp, &wckey.u);
+        mp_copy((mp_int*)key->dp, &wckey.dP);
+        mp_copy((mp_int*)key->dq, &wckey.dQ);
 	}
 
 	/* Get the algorithm */
@@ -931,13 +921,13 @@ TEE_Result crypto_acipher_rsaes_decrypt(uint32_t algo, struct rsa_keypair *key,
 	 * decrypt. We know the upper bound though.
 	 */
 	if (algo == TEE_ALG_RSAES_PKCS1_V1_5) {
-		mod_size = mp_unsigned_size(&wckey.n));
+		mod_size = mp_unsigned_size(&wckey.n);
 		blen = mod_size - 11;
-		rsa_algo = LTC_PKCS_1_V1_5;
+		rsa_algo = WC_RSA_PKCSV15_PAD;
 	} else {
 		/* Decoded message is always shorter than encrypted message */
 		blen = src_len;
-		rsa_algo = LTC_PKCS_1_OAEP;
+		rsa_algo = WC_RSA_OAEP_PAD;
 	}
 
 	buf = malloc(blen);
@@ -946,32 +936,24 @@ TEE_Result crypto_acipher_rsaes_decrypt(uint32_t algo, struct rsa_keypair *key,
 		goto out;
 	}
 
-	wcres = rsa_decrypt_key_ex(src, src_len, buf, &blen,
-				     ((label_len == 0) ? 0 : label), label_len,
-				     hashtype, rsa_algo, &stat,
-				     &wckey);
-	switch (wcres) {
-	case CRYPT_PK_INVALID_PADDING:
-	case CRYPT_INVALID_PACKET:
-	case CRYPT_PK_INVALID_SIZE:
-		EMSG("rsa_decrypt_key_ex() returned %d\n", wcres);
-		res = TEE_ERROR_BAD_PARAMETERS;
-		goto out;
-	case 0:
-		break;
-	default:
-		/* This will result in a panic */
-		EMSG("rsa_decrypt_key_ex() returned %d\n", wcres);
+	wcres = wc_RsaPrivateDecrypt_ex(src, src_len, buf, blen,
+				     &wckey, rsa_algo, hashtype, WC_MGF1NONE,
+                     ((label_len == 0) ? NULL : label), label_len);
+    if (wcres < 0) {
+		EMSG("wc_RsaPrivateDecrypt_ex() returned %d\n", wcres);
 		res = TEE_ERROR_GENERIC;
 		goto out;
 	}
-	if (stat != 1) {
+#if 0
+    /* TODO: Do stat / verify check? */
+    if (XMEMCMP(plain, inStr, plainSz) != 0) {
 		/* This will result in a panic */
 		EMSG("rsa_decrypt_key_ex() returned %d and %d\n",
 		     wcres, stat);
 		res = TEE_ERROR_GENERIC;
 		goto out;
 	}
+#endif
 
 	if (*dst_len < blen) {
 		*dst_len = blen;
@@ -1002,11 +984,11 @@ TEE_Result crypto_acipher_rsaes_encrypt(uint32_t algo,
 	RsaKey wckey;
 
     wc_InitRsaKey(&wckey, NULL);
-	wckey.type = RSA_PUBLIC_ENCRYPT,
-	wckey.e = key->e,
-	wckey.n = key->n
+    wckey.type = RSA_PUBLIC;
+    mp_copy((mp_int*)key->e, &wckey.e);
+    mp_copy((mp_int*)key->n, &wckey.n);
 
-	mod_size =  mp_unsigned_size(&wckey.n);
+	mod_size = mp_unsigned_size(&wckey.n);
 	if (*dst_len < mod_size) {
 		*dst_len = mod_size;
 		res = TEE_ERROR_SHORT_BUFFER;
@@ -1020,28 +1002,18 @@ TEE_Result crypto_acipher_rsaes_encrypt(uint32_t algo,
 		goto out;
 
 	if (algo == TEE_ALG_RSAES_PKCS1_V1_5)
-		rsa_algo = LTC_PKCS_1_V1_5;
+		rsa_algo = WC_RSA_PKCSV15_PAD;
 	else
-		rsa_algo = LTC_PKCS_1_OAEP;
+		rsa_algo = WC_RSA_OAEP_PAD;
 
-	wcres = rsa_encrypt_key_ex(src, src_len, dst,
-				     (unsigned long *)(dst_len), label,
-				     label_len, NULL, find_prng("prng_mpa"),
-				     hashtype, rsa_algo, &wckey);
-	switch (wcres) {
-	case CRYPT_PK_INVALID_PADDING:
-	case CRYPT_INVALID_PACKET:
-	case CRYPT_PK_INVALID_SIZE:
+    wcres = wc_RsaPublicEncrypt_ex(src, src_len, dst, (word32)*dst_len,
+        &wckey, NULL, rsa_algo, hashtype, WC_MGF1NONE, label, label_len);
+    if (wcres < 0) {
 		EMSG("rsa_encrypt_key_ex() returned %d\n", wcres);
 		res = TEE_ERROR_BAD_PARAMETERS;
 		goto out;
-	case 0:
-		break;
-	default:
-		/* This will result in a panic */
-		res = TEE_ERROR_GENERIC;
-		goto out;
-	}
+    }
+
 	res = TEE_SUCCESS;
 
 out:
@@ -1055,47 +1027,47 @@ TEE_Result crypto_acipher_rsassa_sign(uint32_t algo, struct rsa_keypair *key,
 {
 	TEE_Result res;
 	size_t hash_size, mod_size;
-	int wcres, wcrsa_algo, hashtype;
+	int wcres, rsa_algo, hashtype;
 	unsigned long wcsig_len;
     RsaKey wckey;
 
     wc_InitRsaKey(&wckey, NULL);
-	wckey.e = key->e,
-	wckey.n = key->n
-    wckey.d = key->d;
+    mp_copy((mp_int*)key->e, &wckey.e);
+    mp_copy((mp_int*)key->n, &wckey.n);
+    mp_copy((mp_int*)key->d, &wckey.d);
 	if (key->p && crypto_bignum_num_bytes(key->p)) {
-		wckey.p = key->p;
-		wckey.q = key->q;
-		wckey.u = key->qp;
-		wckey.dP = key->dp;
-		wckey.dQ = key->dq;
+        mp_copy((mp_int*)key->p, &wckey.p);
+        mp_copy((mp_int*)key->q, &wckey.p);
+        mp_copy((mp_int*)key->qp, &wckey.u);
+        mp_copy((mp_int*)key->dp, &wckey.dP);
+        mp_copy((mp_int*)key->dq, &wckey.dQ);
 	}
 
 	switch (algo) {
 	case TEE_ALG_RSASSA_PKCS1_V1_5:
-		wcrsa_algo = LTC_PKCS_1_V1_5_NA1;
-		break;
+        rsa_algo = WC_RSA_NO_PAD;
+        break;
 	case TEE_ALG_RSASSA_PKCS1_V1_5_MD5:
 	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA1:
 	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA224:
 	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA256:
 	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA384:
 	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA512:
-		wcrsa_algo = LTC_PKCS_1_V1_5;
+		rsa_algo = WC_RSA_PKCSV15_PAD;
 		break;
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA1:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA224:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA256:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA384:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA512:
-		wcrsa_algo = LTC_PKCS_1_PSS;
+		rsa_algo = WC_RSA_PSS_PAD;
 		break;
 	default:
 		res = TEE_ERROR_BAD_PARAMETERS;
 		goto err;
 	}
 
-	if (wcrsa_algo != LTC_PKCS_1_V1_5_NA1) {
+	if (rsa_algo != WC_RSA_NO_PAD) {
 		wcres = tee_algo_to_hashtype(algo, &hashtype);
 		if (wcres != 0) {
 			res = TEE_ERROR_BAD_PARAMETERS;
@@ -1113,8 +1085,7 @@ TEE_Result crypto_acipher_rsassa_sign(uint32_t algo, struct rsa_keypair *key,
 		}
 	}
 
-	mod_size = mp.unsigned_size(&wckey.n);
-
+	mod_size = mp_unsigned_size(&wckey.n);
 	if (*sig_len < mod_size) {
 		*sig_len = mod_size;
 		res = TEE_ERROR_SHORT_BUFFER;
@@ -1152,7 +1123,7 @@ TEE_Result crypto_acipher_rsassa_verify(uint32_t algo,
     RsaKey wckey;
 
     wc_InitRsaKey(&wckey, NULL);
-	wckey.type = RSA_PUBLIC_ENCRYPT,
+    wckey.type = RSA_PUBLIC;
 	wckey.e = key->e,
 	wckey.n = key->n
 
@@ -1214,6 +1185,7 @@ err:
 
 #endif /* CFG_CRYPTO_RSA */
 
+
 #if defined(CFG_CRYPTO_DH)
 
 TEE_Result crypto_acipher_alloc_dh_keypair(struct dh_keypair *s,
@@ -1256,8 +1228,8 @@ TEE_Result crypto_acipher_gen_dh_key(struct dh_keypair *key, struct bignum *q,
 	if (wcres != 0) {
 		res = TEE_ERROR_BAD_PARAMETERS;
 	} else {
-		ltc_mp.copy(ltc_tmp_key.y,  key->y);
-		ltc_mp.copy(ltc_tmp_key.x,  key->x);
+		mp_copy(ltc_tmp_key.y,  key->y);
+		mp_copy(ltc_tmp_key.x,  key->x);
 
 		/* Free the tempory key */
 		dh_free(&ltc_tmp_key);
@@ -1435,9 +1407,9 @@ TEE_Result crypto_acipher_gen_ecc_key(struct ecc_keypair *key)
 	}
 
 	/* Copy the key */
-	ltc_mp.copy(ltc_tmp_key.k, key->d);
-	ltc_mp.copy(ltc_tmp_key.pubkey.x, key->x);
-	ltc_mp.copy(ltc_tmp_key.pubkey.y, key->y);
+	mp_copy(ltc_tmp_key.k, key->d);
+	mp_copy(ltc_tmp_key.pubkey.x, key->x);
+	mp_copy(ltc_tmp_key.pubkey.y, key->y);
 
 	res = TEE_SUCCESS;
 
@@ -2052,6 +2024,7 @@ void crypto_cipher_final(void *ctx, uint32_t algo)
 }
 #endif /* _CFG_CRYPTO_WITH_CIPHER */
 
+
 /*****************************************************************************
  * Message Authentication Code functions
  *****************************************************************************/
@@ -2387,37 +2360,5 @@ TEE_Result crypto_mac_final(void *ctx, uint32_t algo, uint8_t *digest,
 	return TEE_SUCCESS;
 }
 #endif /* _CFG_CRYPTO_WITH_MAC */
-
-
-
-
-#if defined(CFG_WITH_VFP)
-void tomcrypt_arm_neon_enable(struct tomcrypt_arm_neon_state *state)
-{
-	state->state = thread_kernel_enable_vfp();
-}
-
-void tomcrypt_arm_neon_disable(struct tomcrypt_arm_neon_state *state)
-{
-	thread_kernel_disable_vfp(state->state);
-}
-#endif
-
-#if defined(CFG_CRYPTO_SHA512_256)
-TEE_Result hash_sha512_256_compute(uint8_t *digest, const uint8_t *data,
-		size_t data_size)
-{
-	hash_state hs;
-
-	if (sha512_256_init(&hs) != 0)
-		return TEE_ERROR_GENERIC;
-	if (sha512_256_process(&hs, data, data_size) != 0)
-		return TEE_ERROR_GENERIC;
-	if (sha512_256_done(&hs, digest) != 0)
-		return TEE_ERROR_GENERIC;
-
-	return TEE_SUCCESS;
-}
-#endif
 
 #endif /* WOLFSSL_OPTEE_OS */

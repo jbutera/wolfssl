@@ -2705,7 +2705,7 @@ int wc_RsaFunction(const byte* in, word32 inLen, byte* out,
    labelSz : size of optional label buffer
    saltLen : Length of salt used in PSS
    rng : random number generator */
-static int RsaPublicEncryptEx(const byte* in, word32 inLen, byte* out,
+int wc_RsaPublicEncryptEx(const byte* in, word32 inLen, byte* out,
                             word32 outLen, RsaKey* key, int rsa_type,
                             byte pad_value, int pad_type,
                             enum wc_HashType hash, int mgf,
@@ -2838,7 +2838,7 @@ static int RsaPublicEncryptEx(const byte* in, word32 inLen, byte* out,
    labelSz : size of optional label buffer
    saltLen : Length of salt used in PSS
    rng : random number generator */
-static int RsaPrivateDecryptEx(byte* in, word32 inLen, byte* out,
+int wc_RsaPrivateDecryptEx(byte* in, word32 inLen, byte* out,
                             word32 outLen, byte** outPtr, RsaKey* key,
                             int rsa_type, byte pad_value, int pad_type,
                             enum wc_HashType hash, int mgf,
@@ -3027,7 +3027,7 @@ static int RsaPrivateDecryptEx(byte* in, word32 inLen, byte* out,
 int wc_RsaPublicEncrypt(const byte* in, word32 inLen, byte* out, word32 outLen,
                                                      RsaKey* key, WC_RNG* rng)
 {
-    return RsaPublicEncryptEx(in, inLen, out, outLen, key,
+    return wc_RsaPublicEncryptEx(in, inLen, out, outLen, key,
         RSA_PUBLIC_ENCRYPT, RSA_BLOCK_TYPE_2, WC_RSA_PKCSV15_PAD,
         WC_HASH_TYPE_NONE, WC_MGF1NONE, NULL, 0, 0, rng);
 }
@@ -3039,7 +3039,7 @@ int wc_RsaPublicEncrypt_ex(const byte* in, word32 inLen, byte* out,
                     enum wc_HashType hash, int mgf, byte* label,
                     word32 labelSz)
 {
-    return RsaPublicEncryptEx(in, inLen, out, outLen, key, RSA_PUBLIC_ENCRYPT,
+    return wc_RsaPublicEncryptEx(in, inLen, out, outLen, key, RSA_PUBLIC_ENCRYPT,
         RSA_BLOCK_TYPE_2, type, hash, mgf, label, labelSz, 0, rng);
 }
 #endif /* WC_NO_RSA_OAEP */
@@ -3053,7 +3053,7 @@ int wc_RsaPrivateDecryptInline(byte* in, word32 inLen, byte** out, RsaKey* key)
 #ifdef WC_RSA_BLINDING
     rng = key->rng;
 #endif
-    return RsaPrivateDecryptEx(in, inLen, in, inLen, out, key,
+    return wc_RsaPrivateDecryptEx(in, inLen, in, inLen, out, key,
         RSA_PRIVATE_DECRYPT, RSA_BLOCK_TYPE_2, WC_RSA_PKCSV15_PAD,
         WC_HASH_TYPE_NONE, WC_MGF1NONE, NULL, 0, 0, rng);
 }
@@ -3068,7 +3068,7 @@ int wc_RsaPrivateDecryptInline_ex(byte* in, word32 inLen, byte** out,
 #ifdef WC_RSA_BLINDING
     rng = key->rng;
 #endif
-    return RsaPrivateDecryptEx(in, inLen, in, inLen, out, key,
+    return wc_RsaPrivateDecryptEx(in, inLen, in, inLen, out, key,
         RSA_PRIVATE_DECRYPT, RSA_BLOCK_TYPE_2, type, hash,
         mgf, label, labelSz, 0, rng);
 }
@@ -3082,7 +3082,7 @@ int wc_RsaPrivateDecrypt(const byte* in, word32 inLen, byte* out,
 #ifdef WC_RSA_BLINDING
     rng = key->rng;
 #endif
-    return RsaPrivateDecryptEx((byte*)in, inLen, out, outLen, NULL, key,
+    return wc_RsaPrivateDecryptEx((byte*)in, inLen, out, outLen, NULL, key,
         RSA_PRIVATE_DECRYPT, RSA_BLOCK_TYPE_2, WC_RSA_PKCSV15_PAD,
         WC_HASH_TYPE_NONE, WC_MGF1NONE, NULL, 0, 0, rng);
 }
@@ -3097,7 +3097,7 @@ int wc_RsaPrivateDecrypt_ex(const byte* in, word32 inLen, byte* out,
 #ifdef WC_RSA_BLINDING
     rng = key->rng;
 #endif
-    return RsaPrivateDecryptEx((byte*)in, inLen, out, outLen, NULL, key,
+    return wc_RsaPrivateDecryptEx((byte*)in, inLen, out, outLen, NULL, key,
         RSA_PRIVATE_DECRYPT, RSA_BLOCK_TYPE_2, type, hash, mgf, label,
         labelSz, 0, rng);
 }
@@ -3111,7 +3111,7 @@ int wc_RsaSSL_VerifyInline(byte* in, word32 inLen, byte** out, RsaKey* key)
 #ifdef WC_RSA_BLINDING
     rng = key->rng;
 #endif
-    return RsaPrivateDecryptEx(in, inLen, in, inLen, out, key,
+    return wc_RsaPrivateDecryptEx(in, inLen, in, inLen, out, key,
         RSA_PUBLIC_DECRYPT, RSA_BLOCK_TYPE_1, WC_RSA_PKCSV15_PAD,
         WC_HASH_TYPE_NONE, WC_MGF1NONE, NULL, 0, 0, rng);
 }
@@ -3131,7 +3131,7 @@ int wc_RsaSSL_Verify(const byte* in, word32 inLen, byte* out, word32 outLen,
     rng = key->rng;
 #endif
 
-    return RsaPrivateDecryptEx((byte*)in, inLen, out, outLen, NULL, key,
+    return wc_RsaPrivateDecryptEx((byte*)in, inLen, out, outLen, NULL, key,
         RSA_PUBLIC_DECRYPT, RSA_BLOCK_TYPE_1, WC_RSA_PKCSV15_PAD,
         WC_HASH_TYPE_NONE, WC_MGF1NONE, NULL, 0, 0, rng);
 }
@@ -3184,7 +3184,7 @@ int wc_RsaPSS_VerifyInline_ex(byte* in, word32 inLen, byte** out,
 #ifdef WC_RSA_BLINDING
     rng = key->rng;
 #endif
-    return RsaPrivateDecryptEx(in, inLen, in, inLen, out, key,
+    return wc_RsaPrivateDecryptEx(in, inLen, in, inLen, out, key,
         RSA_PUBLIC_DECRYPT, RSA_BLOCK_TYPE_1, WC_RSA_PSS_PAD,
         hash, mgf, NULL, 0, saltLen, rng);
 }
@@ -3233,7 +3233,7 @@ int wc_RsaPSS_Verify_ex(byte* in, word32 inLen, byte* out, word32 outLen,
 #ifdef WC_RSA_BLINDING
     rng = key->rng;
 #endif
-    return RsaPrivateDecryptEx(in, inLen, out, outLen, NULL, key,
+    return wc_RsaPrivateDecryptEx(in, inLen, out, outLen, NULL, key,
         RSA_PUBLIC_DECRYPT, RSA_BLOCK_TYPE_1, WC_RSA_PSS_PAD,
         hash, mgf, NULL, 0, saltLen, rng);
 }
@@ -3459,7 +3459,7 @@ int wc_RsaPSS_VerifyCheck(byte* in, word32 inLen, byte* out, word32 outLen,
 int wc_RsaSSL_Sign(const byte* in, word32 inLen, byte* out, word32 outLen,
                                                    RsaKey* key, WC_RNG* rng)
 {
-    return RsaPublicEncryptEx(in, inLen, out, outLen, key,
+    return wc_RsaPublicEncryptEx(in, inLen, out, outLen, key,
         RSA_PRIVATE_ENCRYPT, RSA_BLOCK_TYPE_1, WC_RSA_PKCSV15_PAD,
         WC_HASH_TYPE_NONE, WC_MGF1NONE, NULL, 0, 0, rng);
 }
@@ -3506,7 +3506,7 @@ int wc_RsaPSS_Sign_ex(const byte* in, word32 inLen, byte* out, word32 outLen,
                       enum wc_HashType hash, int mgf, int saltLen, RsaKey* key,
                       WC_RNG* rng)
 {
-    return RsaPublicEncryptEx(in, inLen, out, outLen, key,
+    return wc_RsaPublicEncryptEx(in, inLen, out, outLen, key,
         RSA_PRIVATE_ENCRYPT, RSA_BLOCK_TYPE_1, WC_RSA_PSS_PAD,
         hash, mgf, NULL, 0, saltLen, rng);
 }

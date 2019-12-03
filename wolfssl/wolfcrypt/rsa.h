@@ -269,6 +269,20 @@ WOLFSSL_API int  wc_RsaPSS_VerifyCheck(byte* in, word32 inLen,
 
 WOLFSSL_API int  wc_RsaEncryptSize(RsaKey* key);
 
+WOLFSSL_LOCAL int wc_RsaPublicEncryptEx(const byte* in, word32 inLen, byte* out,
+                            word32 outLen, RsaKey* key, int rsa_type,
+                            byte pad_value, int pad_type,
+                            enum wc_HashType hash, int mgf,
+                            byte* label, word32 labelSz, int saltLen,
+                            WC_RNG* rng);
+
+WOLFSSL_LOCAL int wc_RsaPrivateDecryptEx(byte* in, word32 inLen, byte* out,
+                            word32 outLen, byte** outPtr, RsaKey* key,
+                            int rsa_type, byte pad_value, int pad_type,
+                            enum wc_HashType hash, int mgf,
+                            byte* label, word32 labelSz, int saltLen,
+                            WC_RNG* rng);
+
 #if !defined(HAVE_FIPS) || \
 	(defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))
 /* to avoid asn duplicate symbols @wc_fips */
@@ -358,4 +372,3 @@ WOLFSSL_API int wc_RsaKeyToPublicDer(RsaKey*, byte* output, word32 inLen);
 
 #endif /* NO_RSA */
 #endif /* WOLF_CRYPT_RSA_H */
-
