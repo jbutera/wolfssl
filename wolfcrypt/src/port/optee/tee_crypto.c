@@ -58,11 +58,33 @@
 //#include <kernel/thread.h>
 #endif
 
+static WC_RNG* mRNG;
+
 TEE_Result crypto_init(void)
 {
-    wolfSSL_Init();
+    int ret = wolfSSL_Init();
+    if (ret != 0) {
+        return TEE_ERROR_GENERIC;
+    }
+
+    /* setup shared RNG */
+    mRNG = malloc(sizeof(WC_RNG));
+    if (mRNG) {
+        wc_InitRng(mRNG);
+    }
 
 	return TEE_SUCCESS;
+}
+
+void crypto_cleanup(void)
+{
+    if (mRNG) {
+        wc_FreeRng(mRNG);
+        free(mRNG);
+        mRNG = NULL;
+    }
+    wolfSSL_Cleanup();
+    return TEE_SUCCESS;
 }
 
 #if defined(CFG_CRYPTO_SHA256)
@@ -679,20 +701,6 @@ static bool bn_alloc_max(struct bignum **s)
 	return *s;
 }
 
-static TEE_Result __maybe_unused convert_verify_status(int wcres,
-							   int stat)
-{
-	switch (wcres) {
-	case 0:
-		if (stat == 1)
-			return TEE_SUCCESS;
-		else
-			return TEE_ERROR_SIGNATURE_INVALID;
-	default:
-		return TEE_ERROR_GENERIC;
-	}
-}
-
 #if defined(CFG_CRYPTO_RSA)
 
 TEE_Result crypto_acipher_alloc_rsa_keypair(struct rsa_keypair *s,
@@ -757,7 +765,6 @@ TEE_Result crypto_acipher_gen_rsa_key(struct rsa_keypair *key, size_t key_size)
 {
 	TEE_Result res;
 	RsaKey tmp_key;
-    WC_RNG rng;
 	int wcres;
 	long e;
 
@@ -765,8 +772,7 @@ TEE_Result crypto_acipher_gen_rsa_key(struct rsa_keypair *key, size_t key_size)
     wcres = mp_to_unsigned_bin_len((mp_int*)key->e, (byte*)&e, sizeof(e));
 
 	/* Generate a temporary RSA key */
-    wc_InitRng(&rng);
-    wcres = wc_MakeRsaKey(&tmp_key, key_size, e, &rng);
+    wcres = wc_MakeRsaKey(&tmp_key, key_size, e, mRNG);
 	if (wcres != 0) {
 		res = TEE_ERROR_BAD_PARAMETERS;
 	} else if ((size_t)mp_count_bits(&tmp_key.n) != key_size) {
@@ -787,7 +793,6 @@ TEE_Result crypto_acipher_gen_rsa_key(struct rsa_keypair *key, size_t key_size)
 		wc_FreeRsaKey(&tmp_key);
 		res = TEE_SUCCESS;
 	}
-    wc_FreeRng(&rng);
 
 	return res;
 }
@@ -812,7 +817,7 @@ static TEE_Result rsadorep(RsaKey *key, const uint8_t *src,
 		goto out;
 	}
 
-	wcres = wc_RsaFunction(src, src_len, buf, &blen, key->type, key, NULL);
+	wcres = wc_RsaFunction(src, src_len, buf, &blen, key->type, key, mRNG);
     if (wcres != 0) {
 		res = TEE_ERROR_GENERIC;
 		goto out;
@@ -944,16 +949,7 @@ TEE_Result crypto_acipher_rsaes_decrypt(uint32_t algo, struct rsa_keypair *key,
 		res = TEE_ERROR_GENERIC;
 		goto out;
 	}
-#if 0
-    /* TODO: Do stat / verify check? */
-    if (XMEMCMP(plain, inStr, plainSz) != 0) {
-		/* This will result in a panic */
-		EMSG("rsa_decrypt_key_ex() returned %d and %d\n",
-		     wcres, stat);
-		res = TEE_ERROR_GENERIC;
-		goto out;
-	}
-#endif
+    blen = wcres;
 
 	if (*dst_len < blen) {
 		*dst_len = blen;
@@ -1007,9 +1003,9 @@ TEE_Result crypto_acipher_rsaes_encrypt(uint32_t algo,
 		rsa_algo = WC_RSA_OAEP_PAD;
 
     wcres = wc_RsaPublicEncrypt_ex(src, src_len, dst, (word32)*dst_len,
-        &wckey, NULL, rsa_algo, hashtype, WC_MGF1NONE, label, label_len);
+        &wckey, mRNG, rsa_algo, hashtype, WC_MGF1NONE, label, label_len);
     if (wcres < 0) {
-		EMSG("rsa_encrypt_key_ex() returned %d\n", wcres);
+		EMSG("wc_RsaPublicEncrypt_ex() returned %d\n", wcres);
 		res = TEE_ERROR_BAD_PARAMETERS;
 		goto out;
     }
@@ -1027,11 +1023,13 @@ TEE_Result crypto_acipher_rsassa_sign(uint32_t algo, struct rsa_keypair *key,
 {
 	TEE_Result res;
 	size_t hash_size, mod_size;
-	int wcres, rsa_algo, hashtype;
-	unsigned long wcsig_len;
+	int wcres, rsa_algo;
+    enum wc_HashType hashtype;
+	word32 wcsig_len;
     RsaKey wckey;
 
     wc_InitRsaKey(&wckey, NULL);
+    wckey.type = RSA_PRIVATE;
     mp_copy((mp_int*)key->e, &wckey.e);
     mp_copy((mp_int*)key->n, &wckey.n);
     mp_copy((mp_int*)key->d, &wckey.d);
@@ -1094,16 +1092,16 @@ TEE_Result crypto_acipher_rsassa_sign(uint32_t algo, struct rsa_keypair *key,
 
 	sig_len = mod_size;
 
-	wcres = rsa_sign_hash_ex(msg, msg_len, sig, &wcsig_len,
-				   wcrsa_algo, NULL, find_prng("prng_mpa"),
-				   hashtype, salt_len, &wckey);
-
-	*sig_len = wcsig_len;
-
-	if (wcres != 0) {
+    wcres = wc_RsaPrivateDecryptEx(msg, msg_len, sig, wcsig_len, NULL, &wckey,
+        RSA_PRIVATE_ENCRYPT, RSA_BLOCK_TYPE_1, rsa_algo, hashtype, WC_MGF1NONE,
+        NULL, 0, salt_len, mRNG);
+	if (wcres < 0) {
+        EMSG("wc_RsaPrivateDecryptEx() returned %d\n", wcres);
 		res = TEE_ERROR_BAD_PARAMETERS;
 		goto err;
 	}
+    *sig_len = wcres;
+
 	res = TEE_SUCCESS;
 
 err:
@@ -1119,13 +1117,14 @@ TEE_Result crypto_acipher_rsassa_verify(uint32_t algo,
 	TEE_Result res;
 	uint32_t bigint_size;
 	size_t hash_size;
-	int stat, hashtype, wcres, wcrsa_algo;
+	int wcres, wcrsa_algo;
+    enum wc_HashType hashtype;
     RsaKey wckey;
 
     wc_InitRsaKey(&wckey, NULL);
     wckey.type = RSA_PUBLIC;
-	wckey.e = key->e,
-	wckey.n = key->n
+    mp_copy((mp_int*)key->e, &wckey.e);
+    mp_copy((mp_int*)key->n, &wckey.n);
 
 	if (algo != TEE_ALG_RSASSA_PKCS1_V1_5) {
 		res = tee_hash_get_digest_size(TEE_DIGEST_HASH_TO_ALGO(algo),
@@ -1153,32 +1152,40 @@ TEE_Result crypto_acipher_rsassa_verify(uint32_t algo,
 	}
 
 	switch (algo) {
-	case TEE_ALG_RSASSA_PKCS1_V1_5:
-		wcrsa_algo = LTC_PKCS_1_V1_5_NA1;
-		break;
+    case TEE_ALG_RSASSA_PKCS1_V1_5:
+        rsa_algo = WC_RSA_NO_PAD;
+        break;
 	case TEE_ALG_RSASSA_PKCS1_V1_5_MD5:
 	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA1:
 	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA224:
 	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA256:
 	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA384:
 	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA512:
-		wcrsa_algo = LTC_PKCS_1_V1_5;
+		rsa_algo = WC_RSA_PKCSV15_PAD;
 		break;
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA1:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA224:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA256:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA384:
 	case TEE_ALG_RSASSA_PKCS1_PSS_MGF1_SHA512:
-		wcrsa_algo = LTC_PKCS_1_PSS;
+		rsa_algo = WC_RSA_PSS_PAD;
 		break;
 	default:
 		res = TEE_ERROR_BAD_PARAMETERS;
 		goto err;
 	}
 
-	wcres = rsa_verify_hash_ex(sig, sig_len, msg, msg_len, wcrsa_algo,
-				     hashtype, salt_len, &stat, &wckey);
-	res = convert_verify_status(wcres, stat);
+	wcres = wc_RsaPublicEncryptEx(sig, sig_len, msg, msg_len, &wckey,
+        RSA_PUBLIC_DECRYPT, RSA_BLOCK_TYPE_1, rsa_algo, hashtype, WC_MGF1NONE,
+        NULL, 0, salt_len, mRNG);
+    if (wcres < 0) {
+        EMSG("wc_RsaPublicEncryptEx() returned %d\n", wcres);
+        ecres = TEE_ERROR_BAD_PARAMETERS;
+		goto err;
+    }
+
+    res = TEE_SUCCESS;
+
 err:
 	return res;
 }
@@ -1217,24 +1224,51 @@ TEE_Result crypto_acipher_gen_dh_key(struct dh_keypair *key, struct bignum *q,
 				     size_t xbits)
 {
 	TEE_Result res;
-	dh_key ltc_tmp_key;
+	DhKey tmp_key;
 	int wcres;
+    byte *priv, *pub;
+    word32 privSz, pubSz;
 
 	/* Generate the DH key */
-	ltc_tmp_key.g = key->g;
-	ltc_tmp_key.p = key->p;
-	wcres = dh_make_key(NULL, find_prng("prng_mpa"), q, xbits,
-			      &ltc_tmp_key);
-	if (wcres != 0) {
-		res = TEE_ERROR_BAD_PARAMETERS;
-	} else {
-		mp_copy(ltc_tmp_key.y,  key->y);
-		mp_copy(ltc_tmp_key.x,  key->x);
+    wc_InitDhKey(&tmp_key);
+    mp_copy((mp_int*)key->g, &tmp_key.g);
+    mp_copy((mp_int*)key->p, &tmp_key.p);
+    if (q) {
+        mp_copy((mp_int*)q, &tmp_key.q);
+    }
 
-		/* Free the tempory key */
-		dh_free(&ltc_tmp_key);
-		res = TEE_SUCCESS;
+    privSz = xbits/8;
+    priv = malloc(privSz);
+    if (!priv) {
+        return TEE_ERROR_OUT_OF_MEMORY;
+    }
+    pubSz = xbits/8;
+    pub = malloc(pubSz);
+    if (!pub) {
+        free(priv);
+        return TEE_ERROR_OUT_OF_MEMORY;
+    }
+
+    wcres = wc_DhGenerateKeyPair(&tmp_key, mRNG, priv, &privSz, pub, &pubSz);
+    if (wcres != 0) {
+		res = TEE_ERROR_BAD_PARAMETERS;
 	}
+    else {
+        res = TEE_SUCCESS;
+
+        /* export generated key to x/y */
+        /* x = private key */
+        wcres  = mp_read_unsigned_bin((mp_int*)key->x, (uint8_t *)priv, privSz);
+        /* y = public key */
+        wcres |= mp_read_unsigned_bin((mp_int*)key->y, (uint8_t *)pub, pubSz);
+        if (wcres != 0) {
+            res = TEE_ERROR_GENERIC;
+        }
+	}
+
+    wc_FreeDhKey(&tmp_key);
+    free(pub); pub = NULL;
+    free(priv); priv = NULL;
 	return res;
 }
 
@@ -1243,6 +1277,19 @@ TEE_Result crypto_acipher_dh_shared_secret(struct dh_keypair *private_key,
 					   struct bignum *secret)
 {
 	int err;
+    DhKey tmp_key;
+	int wcres;
+    byte *priv, *pub;
+    word32 privSz, pubSz;
+
+    wc_InitDhKey(&tmp_key);
+    mp_copy((mp_int*)private_key->g, &tmp_key.g);
+    mp_copy((mp_int*)private_key->p, &tmp_key.p);
+
+    /* export x/y */
+
+
+
 	dh_key pk = {
 		.type = PK_PRIVATE,
 		.g = private_key->g,
