@@ -42,7 +42,7 @@
 #include <wolfssl/wolfcrypt/ecc.h>
 #include <wolfssl/wolfcrypt/rsa.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
-
+#include <wolfssl/wolfcrypt/hash.h>
 
 
 #ifdef WOLF_MBEDTLS_COMPAT
@@ -129,6 +129,9 @@
     #define mbedtls_sha256_starts(ctx, is224)       wc_InitSha256(ctx)
     #define mbedtls_sha256_update(ctx, data, len)   wc_Sha256Update(ctx, data, len)
     #define mbedtls_sha256_finish(ctx, hash)        wc_Sha256Final(ctx, hash)
+    #define mbedtls_sha256_free(ctx)                wc_Sha256Free(ctx)
+    #define mbedtls_sha256_clone(dst, src)          wc_Sha256Copy(src, dst)
+    #define mbedtls_sha256(data, len, out, is224)   wc_Sha256Hash(data, len, out)
 
     #define mbedtls_sha1_context                    wc_Sha
     #define mbedtls_sha1_init(ctx)
@@ -136,6 +139,9 @@
     #define mbedtls_sha1_update(ctx, data, len)     wc_ShaUpdate(ctx, data, len)
     #define mbedtls_sha1_finish(ctx, hash)          wc_ShaFinal(ctx, hash)
 
+    #define mbedtls_aes_init(ctx)                   wc_AesInit(ctx, NULL, INVALID_DEVID)
+    #define mbedtls_aes_setkey_enc(ctx, key, len)   wc_AesSetKey(ctx, key, len, NULL, AES_ENCRYPTION)
+    #define mbedtls_aes_setkey_dec(ctx, key, len)   wc_AesSetKey(ctx, key, len, NULL, AES_DECRYPTION)
 
     #define mbedtls_base64_decode(dst, dlen, olen, src, slen) \
         Base64_Decode((src), (slen), (dst), (olen))
