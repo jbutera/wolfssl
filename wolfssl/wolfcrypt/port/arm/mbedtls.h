@@ -151,6 +151,15 @@
     #define mbedtls_ctr_drbg_free(rng)              wc_FreeRng(*(rng))
     #define mbedtls_ctr_drbg_random(rng,buf,sz)     wc_RNG_GenerateBlock(*(rng), (buf), (sz))
 
+    /* HMAC */
+    #define mbedtls_md_context_t Hmac
+    #define mbedtls_md_init(ctx)                    wc_HmacInit(ctx, NULL, INVALID_DEVID)
+    #define mbedtls_md_setup(&ctx, type, 1)         
+    #define mbedtls_md_hmac_starts(ctx, key, klen)  wc_HmacSetKey(ctx, WC_SHA, key, klen)
+    #define mbedtls_md_hmac_update(ctx, data, len)  wc_HmacUpdate(ctx, data, len)
+    #define mbedtls_md_hmac_finish(ctx, result)     wc_HmacFinal(ctx, result)
+    #define mbedtls_md_free(ctx)                    wc_HmacFree(ctx)
+
     /* entropy */
     #define MBEDTLS_ERR_ENTROPY_SOURCE_FAILED -0x003C
 
