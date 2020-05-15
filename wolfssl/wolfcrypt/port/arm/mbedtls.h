@@ -37,6 +37,7 @@
 #include <wolfssl/wolfcrypt/sha256.h>
 #include <wolfssl/wolfcrypt/sha.h>
 #include <wolfssl/wolfcrypt/asn_public.h>
+#include <wolfssl/wolfcrypt/cmac.h>
 #include <wolfssl/wolfcrypt/coding.h>
 #include <wolfssl/wolfcrypt/random.h>
 #include <wolfssl/wolfcrypt/ecc.h>
@@ -124,6 +125,9 @@
         MBEDTLS_MD_RIPEMD160,
     } mbedtls_md_type_t;
 
+    typedef Cmac mbedtls_cipher_context_t;
+    typedef Aes mbedtls_aes_context;
+
     #define mbedtls_sha256_context                  wc_Sha256
     #define mbedtls_sha256_init(ctx)
     #define mbedtls_sha256_starts(ctx, is224)       wc_InitSha256(ctx)
@@ -139,9 +143,11 @@
     #define mbedtls_sha1_update(ctx, data, len)     wc_ShaUpdate(ctx, data, len)
     #define mbedtls_sha1_finish(ctx, hash)          wc_ShaFinal(ctx, hash)
 
-    #define mbedtls_aes_init(ctx)                   wc_AesInit(ctx, NULL, INVALID_DEVID)
-    #define mbedtls_aes_setkey_enc(ctx, key, len)   wc_AesSetKey(ctx, key, len, NULL, AES_ENCRYPTION)
-    #define mbedtls_aes_setkey_dec(ctx, key, len)   wc_AesSetKey(ctx, key, len, NULL, AES_DECRYPTION)
+    #define mbedtls_aes_init(ctx)                     wc_AesInit(ctx, NULL, INVALID_DEVID)
+    #define mbedtls_aes_setkey_enc(ctx, key, keybits) wc_AesSetKey(ctx, key, keybits/8, NULL, AES_ENCRYPTION)
+    #define mbedtls_aes_setkey_dec(ctx, key, keybits) wc_AesSetKey(ctx, key, keybits/8, NULL, AES_DECRYPTION)
+    #define mbedtls_aes_crypt_ecb(ctx, dir, src, dst) wc_AesEcbEncrypt(ctx, dst, src, AES_BLOCK_SIZE)
+    #define mbedtls_aes_free(ctx)                     wc_AesFree(ctx)
 
     #define mbedtls_base64_decode(dst, dlen, olen, src, slen) \
         Base64_Decode((src), (slen), (dst), (olen))
@@ -159,6 +165,18 @@
     #define mbedtls_md_hmac_update(ctx, data, len)  wc_HmacUpdate(ctx, data, len)
     #define mbedtls_md_hmac_finish(ctx, result)     wc_HmacFinal(ctx, result)
     #define mbedtls_md_free(ctx)                    wc_HmacFree(ctx)
+
+    /* CMAC */
+    typedef unsigned int mbedtls_cipher_info_t;
+    static mbedtls_cipher_info_t dummyCipherInfo;
+    #define MBEDTLS_ERR_CIPHER_ALLOC_FAILED            MEMORY_E
+    #define mbedtls_cipher_info_from_type(type)        &dummyCipherInfo
+    #define mbedtls_cipher_init(ctx)
+    #define mbedtls_cipher_setup(ctx, info)            0
+    #define mbedtls_cipher_cmac_starts(ctx, key, klen) wc_InitCmac(ctx, key, klen, WC_CMAC_AES, NULL)
+    #define mbedtls_cipher_cmac_update(ctx, data, len) wc_CmacUpdate(ctx, data, len)
+    #define mbedtls_cipher_cmac_finish(ctx, result)    ({int ret; word32 tag=16; ret = wc_CmacFinal(ctx, result, &tag); (void)tag; ret;})
+    #define mbedtls_cipher_free(ctx)
 
     /* entropy */
     #define MBEDTLS_ERR_ENTROPY_SOURCE_FAILED -0x003C
