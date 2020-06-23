@@ -6861,6 +6861,28 @@ word32 SetAlgoID(int algoOID, byte* output, int type, int curveSz)
     return length;
 }
 
+int wc_DecodeSignature(const byte* input, word32* inOutIdx, word32 maxIdx,
+    int* hashOID, byte* digest, word32* digSz)
+{
+    int ret, length;
+    word32 oid;
+    ret = GetSequence(input, inOutIdx, &length, maxIdx);
+    if (ret == 0) {
+        ret = GetAlgoId(input, inOutIdx, &oid, oidHashType, maxIdx);
+        if (hashOID)
+            *hashOID = (int)oid;
+    }
+    if (ret == 0) {
+        ret = GetOctetString(input, inOutIdx, &length, maxIdx);
+        if (ret == 0) {
+            if (digSz)
+                *digSz = length;
+            if (digest)
+                XMEMCPY(digest, &input[*inOutIdx], length);
+        }
+    }
+    return ret;
+}
 
 word32 wc_EncodeSignature(byte* out, const byte* digest, word32 digSz,
                           int hashOID)
@@ -6880,7 +6902,6 @@ word32 wc_EncodeSignature(byte* out, const byte* digest, word32 digSz,
 
     return encDigSz + algoSz + seqSz;
 }
-
 
 #ifndef NO_CERTS
 

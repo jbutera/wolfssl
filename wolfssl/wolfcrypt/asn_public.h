@@ -557,6 +557,9 @@ WOLFSSL_API void wc_FreeDer(DerBuffer** pDer);
 /* DER encode signature */
 WOLFSSL_API word32 wc_EncodeSignature(byte* out, const byte* digest,
                                       word32 digSz, int hashOID);
+WOLFSSL_API int wc_DecodeSignature(const byte* input, word32* inOutIdx, 
+    word32 maxIdx, int* hashOID, byte* digest, word32* digSz);
+
 WOLFSSL_API int wc_GetCTC_HashOID(int type);
 
 WOLFSSL_API int wc_GetPkcs8TraditionalOffset(byte* input,

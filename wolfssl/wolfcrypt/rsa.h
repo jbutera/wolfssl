@@ -351,14 +351,14 @@ WOLFSSL_API int wc_RsaKeyToPublicDer(RsaKey*, byte* output, word32 inLen);
                                           int nlen, int* isPrime);
 #endif
 
-WOLFSSL_LOCAL int wc_RsaPad_ex(const byte* input, word32 inputLen, byte* pkcsBlock,
+WOLFSSL_API int wc_RsaPad_ex(const byte* input, word32 inputLen, byte* pkcsBlock,
         word32 pkcsBlockLen, byte padValue, WC_RNG* rng, int padType,
         enum wc_HashType hType, int mgf, byte* optLabel, word32 labelLen,
         int saltLen, int bits, void* heap);
-WOLFSSL_LOCAL int wc_RsaUnPad_ex(byte* pkcsBlock, word32 pkcsBlockLen, byte** out,
-                                   byte padValue, int padType, enum wc_HashType hType,
-                                   int mgf, byte* optLabel, word32 labelLen, int saltLen,
-                                   int bits, void* heap);
+WOLFSSL_API int wc_RsaUnPad_ex(byte* pkcsBlock, word32 pkcsBlockLen, byte** out,
+        byte padValue, int padType, enum wc_HashType hType,
+        int mgf, byte* optLabel, word32 labelLen, int saltLen,
+        int bits, void* heap);
 
 #endif /* HAVE_USER_RSA */
 
