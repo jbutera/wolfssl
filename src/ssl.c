@@ -2068,6 +2068,89 @@ int wolfSSL_peek(WOLFSSL* ssl, void* data, int sz)
     return wolfSSL_read_internal(ssl, data, sz, TRUE);
 }
 
+int wolfSSL_PeekDecryptSize(WOLFSSL* ssl, int encSz)
+{
+    int tlsOverhead = 0;
+    word32 headerSz, digestSz;
+    word32 pad, ivSz = 0, blockSz;
+
+    if (ssl == NULL || encSz < RECORD_HEADER_SZ) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* packet header: type + version + len(2) */
+    headerSz = RECORD_HEADER_SZ;
+#ifdef WOLFSSL_DTLS
+    if (ssl->options.dtls) {
+        headerSz += DTLS_RECORD_EXTRA;
+    }
+#endif
+
+    /* hash size */
+    digestSz = ssl->specs.hash_size;
+#ifdef HAVE_TRUNCATED_HMAC
+    if (ssl->truncated_hmac) {
+        /* shortened HMAC */
+        digestSz = min(TRUNCATED_HMAC_SZ, ssl->specs.hash_size);
+    }
+#endif
+
+    if (ssl->keys.encryptionOn) {
+    #ifdef WOLFSSL_TLS13
+        if (ssl->options.tls1_3) {
+            tlsOverhead = headerSz + ssl->specs.aead_mac_size + 1; /* plus pad */
+        }
+        else
+    #endif
+        {
+        #ifndef WOLFSSL_AEAD_ONLY
+            /* stream = 0, block = 1, aead = 2 */
+            if (ssl->specs.cipher_type == block) {
+                blockSz = ssl->specs.block_size;
+                if (ssl->options.tls1_1) {
+                    ivSz = blockSz;
+                }
+
+            #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
+                if (ssl->options.startedETMWrite) {
+                    pad = (encSz - headerSz - digestSz - 1) % blockSz;
+                }
+                else
+            #endif
+                {
+                    pad = (encSz - headerSz - 1) % blockSz;
+                }
+                if (pad != 0)
+                    pad = blockSz - pad;
+
+                tlsOverhead = headerSz + ivSz + pad + 1; /* always at least one pad byte */
+            }
+            if (ssl->specs.cipher_type == stream) {
+                tlsOverhead = headerSz + digestSz;
+            }
+        #endif
+
+        #ifdef HAVE_AEAD
+            if (ssl->specs.cipher_type == aead) {
+                if (ssl->specs.bulk_cipher_algorithm != wolfssl_chacha) {
+                    ivSz = AESGCM_EXP_IV_SZ;
+                }
+                tlsOverhead = headerSz + ivSz + ssl->specs.aead_mac_size;
+            }
+        #endif
+        }
+    }
+    else {
+        tlsOverhead = headerSz;
+    }
+
+    if (encSz - tlsOverhead < 0) {
+        return encSz;
+    }
+
+    return encSz - tlsOverhead;
+}
+
 
 WOLFSSL_ABI
 int wolfSSL_read(WOLFSSL* ssl, void* data, int sz)
