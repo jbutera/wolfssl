@@ -15022,6 +15022,10 @@ int ProcessReply(WOLFSSL* ssl)
             ret = GetRecordHeader(ssl, ssl->buffers.inputBuffer.buffer,
                                        &ssl->buffers.inputBuffer.idx,
                                        &ssl->curRL, &ssl->curSize);
+
+            readSz = wolfSSL_PeekDecryptSize(ssl, ssl->curSize + RECORD_HEADER_SZ);
+            printf("PEEK Packet %d -> Decrypt %d\n", ssl->curSize + RECORD_HEADER_SZ, readSz);
+
 #ifdef WOLFSSL_DTLS
             if (ssl->options.dtls && ret == SEQUENCE_ERROR) {
                 WOLFSSL_MSG("Silently dropping out of order DTLS message");

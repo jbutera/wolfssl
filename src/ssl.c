@@ -1940,6 +1940,8 @@ int wolfSSL_write(WOLFSSL* ssl, const void* data, int sz)
     if (ssl == NULL || data == NULL || sz < 0)
         return BAD_FUNC_ARG;
 
+    printf("SSL Write %d\n", sz);
+
 #ifdef WOLFSSL_EARLY_DATA
     if (ssl->earlyData != no_early_data && (ret = wolfSSL_negotiate(ssl)) < 0) {
         ssl->error = ret;
@@ -1990,6 +1992,8 @@ int wolfSSL_write(WOLFSSL* ssl, const void* data, int sz)
     #endif
     ret = SendData(ssl, data, sz);
 
+    printf("SSL WriteD %d\n", ret);
+
     WOLFSSL_LEAVE("SSL_write()", ret);
 
     if (ret < 0)
@@ -2006,6 +2010,8 @@ static int wolfSSL_read_internal(WOLFSSL* ssl, void* data, int sz, int peek)
 
     if (ssl == NULL || data == NULL || sz < 0)
         return BAD_FUNC_ARG;
+
+    printf("SSL Read %d (peek %d)\n", sz, peek);
 
 #ifdef HAVE_WRITE_DUP
     if (ssl->dupWrite && ssl->dupSide == WRITE_DUP_SIDE) {
@@ -2033,6 +2039,8 @@ static int wolfSSL_read_internal(WOLFSSL* ssl, void* data, int sz, int peek)
     sz = wolfSSL_GetMaxRecordSize(ssl, sz);
 
     ret = ReceiveData(ssl, (byte*)data, sz, peek);
+
+    printf("SSL ReadD %d\n", ret);
 
 #ifdef HAVE_WRITE_DUP
     if (ssl->dupWrite) {

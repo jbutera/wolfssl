@@ -265,6 +265,9 @@ int EmbedSend(WOLFSSL* ssl, char *buf, int sz, void *ctx)
 #endif
 
     sent = wolfIO_Send(sd, buf, sz, ssl->wflags);
+
+    printf("Send %d -> %d\n", sz, sent);
+
     if (sent < 0) {
         int err = wolfSSL_LastError();
         WOLFSSL_MSG("Embed Send error");
