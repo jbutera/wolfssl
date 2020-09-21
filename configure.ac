@@ -2611,8 +2611,11 @@ AS_IF([test "x$ENABLED_FIPS" = "xyes" && test "x$thread_ls_on" = "xno"],
 AS_IF([test "x$ENABLED_FIPS" = "xyes" && test "x$FIPS_VERSION" != "xrand"],
 [
     # Force enable the prerequisites.
-    AS_IF([test "x$ENABLED_SHA512" = "xno"],
-        [ENABLED_SHA512="yes"; AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SHA512 -DWOLFSSL_SHA384"])
+    if test "x$ENABLED_ARMASM" = "xno" || (test "x$ENABLED_ARMASM" = "xyes" && test "$host_cpu" != "aarch64")
+    then
+        AS_IF([test "x$ENABLED_SHA512" = "xno"],
+            [ENABLED_SHA512="yes"; AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SHA512 -DWOLFSSL_SHA384"])
+    fi
     AS_IF([test "x$ENABLED_AESGCM" = "xno"],
         [ENABLED_AESGCM="yes"; AM_CFLAGS="$AM_CFLAGS -DHAVE_AESGCM"])
     AS_IF([test "x$ENABLED_DES3" = "xno"],[ENABLED_DES3="yes"])
