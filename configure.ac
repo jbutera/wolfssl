@@ -138,38 +138,32 @@ AC_ARG_ENABLE([fips],
     [ENABLED_FIPS=$enableval],
     [ENABLED_FIPS="no"])
 
+# The FIPS options are:
+#   v4 - FIPS 140-3
+#   v3 - FIPS Ready
+#   ready - same as v3
+#   rand - wolfRand
+#   v2 - FIPS 140-2 Cert 3389
+#   no - FIPS build disabled
+#   v1 - FIPS 140-2 Cert 2425
+#   default - same as v1
 AS_CASE([$ENABLED_FIPS],
-    # FIPS 140-3
-    ["v3"],[ENABLED_FIPS="yes";FIPS_VERSION="v3"],
-    ["ready"],[
-        ENABLED_FIPS="yes"
-        FIPS_VERSION="v2"
-        FIPS_READY="yes"
-    ],
-    ["v2"],[
-        # FIPS v2
-        ENABLED_FIPS="yes"
-        FIPS_VERSION="v2"
-    ],
-    ["rand"],[
-        # FIPS Rand
-        ENABLED_FIPS="yes"
-        FIPS_VERSION="rand"
-    ],
+    ["v4"],[ENABLED_FIPS="yes";FIPS_VERSION="v4"],
+    ["v3"],[ENABLED_FIPS="yes"; FIPS_VERSION="v3";FIPS_READY="yes"],
+    ["ready"],[ENABLED_FIPS="yes"; FIPS_VERSION="v3";FIPS_READY="yes"],
+    ["v2"],[ENABLED_FIPS="yes";FIPS_VERSION="v2"],
+    ["rand"],[ENABLED_FIPS="yes";FIPS_VERSION="rand"],
     ["no"],[FIPS_VERSION="none"],
-    [
-        # FIPS v1
-        ENABLED_FIPS="yes"
-        FIPS_VERSION="v1"
-    ])
+    ["v1"],[ENABLED_FIPS="yes";FIPS_VERSION="v1"],
+    [ENABLED_FIPS="yes";FIPS_VERSION="v1"])
 
 
 # FIPS 140-3
 AC_ARG_ENABLE([fips-3],
     [AS_HELP_STRING([--enable-fips-3],[Enable FIPS 140-3, Will NOT work w/o FIPS license (default: disabled)])],
-    [ENABLED_FIPS_3=$enableval],
-    [ENABLED_FIPS_3="no"])
-AS_IF([test "x$ENABLED_FIPS_3" = "xyes"],[ENABLED_FIPS="yes";FIPS_VERSION="v3"])
+    [ENABLED_FIPS_140_3=$enableval],
+    [ENABLED_FIPS_140_3="no"])
+AS_IF([test "x$ENABLED_FIPS_140_3" = "xyes"],[ENABLED_FIPS="yes";FIPS_VERSION="v4"])
 
 
 # Distro build feature subset (Debian, Ubuntu, etc.)
@@ -2794,8 +2788,8 @@ fi
 
 # FIPS
 AS_CASE([$FIPS_VERSION],
-    ["v3"], [
-        AM_CFLAGS="$AM_CFLAGS -DHAVE_FIPS -DHAVE_FIPS_VERSION=3 -DWOLFSSL_KEY_GEN -DWOLFSSL_SHA224 -DWOLFSSL_AES_DIRECT -DHAVE_AES_ECB -DHAVE_ECC_CDH -DWC_RSA_NO_PADDING -DWOLFSSL_VALIDATE_FFC_IMPORT -DHAVE_FFDHE_Q"
+    ["v4"], [ # FIPS 140-3
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_FIPS -DHAVE_FIPS_VERSION=4 -DWOLFSSL_KEY_GEN -DWOLFSSL_SHA224 -DWOLFSSL_AES_DIRECT -DHAVE_AES_ECB -DHAVE_ECC_CDH -DWC_RSA_NO_PADDING -DWOLFSSL_VALIDATE_FFC_IMPORT -DHAVE_FFDHE_Q"
         ENABLED_KEYGEN="yes"; ENABLED_SHA224="yes"; ENABLED_DES3="no"
         # Shake256 is a SHA-3 algorithm not in our FIPS algorithm list
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_SHAKE256"
@@ -2821,13 +2815,46 @@ AS_CASE([$FIPS_VERSION],
         AS_IF([test "x$ENABLED_AESGCM" = "xno"],
             [ENABLED_AESGCM="yes"; AM_CFLAGS="$AM_CFLAGS -DHAVE_AESGCM"])
     ],
-    ["v2"],[
-        AS_IF([test "x$FIPS_READY" = "xyes"],
-            [AM_CFLAGS="$AM_CFLAGS -DHAVE_FIPS_VERSION=3"; ENABLED_DES3="no"],
-            [AM_CFLAGS="$AM_CFLAGS -DHAVE_FIPS_VERSION=2"; ENABLED_DES3="yes"])
-        AM_CFLAGS="$AM_CFLAGS -DHAVE_FIPS -DWOLFSSL_KEY_GEN -DWOLFSSL_SHA224 -DWOLFSSL_AES_DIRECT -DHAVE_AES_ECB -DHAVE_ECC_CDH -DWC_RSA_NO_PADDING -DWOLFSSL_VALIDATE_FFC_IMPORT -DHAVE_FFDHE_Q"
+    ["v3"],[ # FIPS Ready
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_FIPS -DHAVE_FIPS_VERSION=3 -DWOLFSSL_KEY_GEN -DWOLFSSL_SHA224 -DWOLFSSL_AES_DIRECT -DHAVE_AES_ECB -DHAVE_ECC_CDH -DWC_RSA_NO_PADDING -DWOLFSSL_VALIDATE_FFC_IMPORT -DHAVE_FFDHE_Q"
         ENABLED_KEYGEN="yes"
         ENABLED_SHA224="yes"
+        ENABLED_DES3="yes"
+        # Shake256 is a SHA-3 algorithm not in our FIPS algorithm list
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_SHAKE256"
+        AS_IF([test "x$ENABLED_AESCCM" != "xyes"],
+              [ENABLED_AESCCM="yes"
+               AM_CFLAGS="$AM_CFLAGS -DHAVE_AESCCM"])
+        AS_IF([test "x$ENABLED_RSAPSS" != "xyes"],
+              [ENABLED_RSAPSS="yes"
+               AM_CFLAGS="$AM_CFLAGS -DWC_RSA_PSS"])
+        AS_IF([test "x$ENABLED_ECC" != "xyes"],
+              [ENABLED_ECC="yes"
+               AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC -DTFM_ECC256 -DWOLFSSL_VALIDATE_ECC_IMPORT"
+               AS_IF([test "x$ENABLED_ECC_SHAMIR" = "xyes"],
+                     [AM_CFLAGS="$AM_CFLAGS -DECC_SHAMIR"])],
+              [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_VALIDATE_ECC_IMPORT"])
+        AS_IF([test "x$ENABLED_AESCTR" != "xyes"],
+              [ENABLED_AESCTR="yes"
+               AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_COUNTER"])
+        AS_IF([test "x$ENABLED_CMAC" != "xyes"],
+              [ENABLED_CMAC="yes"
+               AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CMAC"])
+        AS_IF([test "x$ENABLED_HKDF" != "xyes"],
+              [ENABLED_HKDF="yes"
+               AM_CFLAGS="$AM_CFLAGS -DHAVE_HKDF"])
+        AS_IF([test "x$ENABLED_INTELASM" = "xyes"],
+              [AM_CFLAGS="$AM_CFLAGS -DFORCE_FAILURE_RDSEED"])
+        AS_IF([test "x$ENABLED_SHA512" = "xno"],
+            [ENABLED_SHA512="yes"; AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SHA512 -DWOLFSSL_SHA384"])
+        AS_IF([test "x$ENABLED_AESGCM" = "xno"],
+            [ENABLED_AESGCM="yes"; AM_CFLAGS="$AM_CFLAGS -DHAVE_AESGCM"])
+    ],
+    ["v2"],[ # Cert 3389
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_FIPS -DHAVE_FIPS_VERSION=2 -DWOLFSSL_KEY_GEN -DWOLFSSL_SHA224 -DWOLFSSL_AES_DIRECT -DHAVE_AES_ECB -DHAVE_ECC_CDH -DWC_RSA_NO_PADDING -DWOLFSSL_VALIDATE_FFC_IMPORT -DHAVE_FFDHE_Q"
+        ENABLED_KEYGEN="yes"
+        ENABLED_SHA224="yes"
+        ENABLED_DES3="yes"
         # Shake256 is a SHA-3 algorithm not in our FIPS algorithm list
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_SHAKE256"
         AS_IF([test "x$ENABLED_AESCCM" != "xyes"],
@@ -2861,7 +2888,7 @@ AS_CASE([$FIPS_VERSION],
     ["rand"],[
         AM_CFLAGS="$AM_CFLAGS -DWOLFCRYPT_FIPS_RAND -DHAVE_FIPS -DHAVE_FIPS_VERSION=2"
     ],
-    ["v1"],[
+    ["v1"],[ # Cert 2425
         AM_CFLAGS="$AM_CFLAGS -DHAVE_FIPS"
         AS_IF([test "x$ENABLED_SHA512" = "xno"],
             [ENABLED_SHA512="yes"; AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SHA512 -DWOLFSSL_SHA384"])
@@ -2908,7 +2935,7 @@ AS_CASE([$SELFTEST_VERSION],
 SHA224_DEFAULT=no
 if test "$host_cpu" = "x86_64" || test "$host_cpu" = "aarch64"
 then
-    if test "x$ENABLED_AFALG" = "xno" && test "x$ENABLED_DEVCRYPTO" = "xno" && ( test "x$ENABLED_FIPS" = "xno" || test "x$FIPS_VERSION" = "xv2" || test "x$FIPS_VERSION" = "xv3" )
+    if test "x$ENABLED_AFALG" = "xno" && test "x$ENABLED_DEVCRYPTO" = "xno" && ( test "x$ENABLED_FIPS" = "xno" || test "x$FIPS_VERSION" = "xv2" || test "x$FIPS_VERSION" = "xv3" || test "x$FIPS_VERSION" = "xv4" )
     then
         SHA224_DEFAULT=yes
     fi
@@ -2931,7 +2958,7 @@ fi
 SHA3_DEFAULT=no
 if test "$host_cpu" = "x86_64" || test "$host_cpu" = "aarch64"
 then
-    if test "x$ENABLED_FIPS" = "xno" || test "x$FIPS_VERSION" = "xv2" || test "x$FIPS_VERSION" = "xv3"
+    if test "x$ENABLED_FIPS" = "xno" || test "x$FIPS_VERSION" = "xv2" || test "x$FIPS_VERSION" = "xv3" || test "x$FIPS_VERSION" = "xv4"
     then
         SHA3_DEFAULT=yes
     fi
@@ -2961,6 +2988,8 @@ AC_ARG_ENABLE([shake256],
     [ ENABLED_SHAKE256=$enableval ],
     [ ENABLED_SHAKE256=$ENABLED_SHA3 ]
     )
+
+AS_IF([test "x$ENABLED_FIPS" = "xyes"],[ENABLED_SHAKE256 = "no"])
 
 if test "$ENABLED_SHAKE256" = "yes" || test "$ENABLED_SHAKE256" = "small"
 then
@@ -5745,6 +5774,8 @@ AM_CONDITIONAL([BUILD_FIPS_V1],[test "x$FIPS_VERSION" = "xv1"])
 AM_CONDITIONAL([BUILD_FIPS_V2],[test "x$FIPS_VERSION" = "xv2"])
 AM_CONDITIONAL([BUILD_FIPS_RAND],[test "x$FIPS_VERSION" = "xrand"])
 AM_CONDITIONAL([BUILD_FIPS_V3],[test "x$FIPS_VERSION" = "xv3"])
+AM_CONDITIONAL([BUILD_FIPS_V4],[test "x$FIPS_VERSION" = "xv4"])
+AM_CONDITIONAL([BUILD_FIPS_CURRENT],[test "x$FIPS_VERSION" = "xv2" || test "x$FIPS_VERSION" = "xv3" || test "x$FIPS_VERSION" = "xv4"])
 AM_CONDITIONAL([BUILD_CMAC],[test "x$ENABLED_CMAC" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_SELFTEST],[test "x$ENABLED_SELFTEST" = "xyes"])
 AM_CONDITIONAL([BUILD_SHA224],[test "x$ENABLED_SHA224" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
