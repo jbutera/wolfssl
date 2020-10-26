@@ -1,0 +1,87 @@
+#include <stdio.h>
+#include "board.h"
+#include "peripherals.h"
+#include "pin_mux.h"
+#include "clock_config.h"
+#include "MK82F25615.h"
+#include "fsl_debug_console.h"
+
+#ifndef WOLFSSL_USER_SETTINGS
+#include <wolfssl/options.h>
+#endif
+
+#include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/ssl.h>
+#include <wolfcrypt/test/test.h>
+#include <wolfcrypt/benchmark/benchmark.h>
+
+/*****************************************************************************
+ * Private types/enumerations/variables
+ ****************************************************************************/
+
+
+/*****************************************************************************
+ * Public types/enumerations/variables
+ ****************************************************************************/
+typedef struct func_args {
+    int    argc;
+    char** argv;
+    int    return_code;
+} func_args;
+
+const char menu1[] = "\r\n"
+    "\tt. WolfSSL Test\r\n"
+    "\tb. WolfSSL Benchmark\r\n";
+
+/*****************************************************************************
+ * Private functions
+ ****************************************************************************/
+
+/*****************************************************************************
+ * Public functions
+ ****************************************************************************/
+int main(void)
+{
+    int opt = 0;
+    func_args args;
+
+    /* Init board hardware. */
+    BOARD_InitBootPins();
+    BOARD_InitBootClocks();
+    BOARD_InitBootPeripherals();
+#ifndef BOARD_INIT_DEBUG_CONSOLE_PERIPHERAL
+    /* Init FSL debug console. */
+    BOARD_InitDebugConsole();
+#endif
+
+    while (1) {
+    	printf("\r\n\t\t\t\tMENU\r\n");
+    	printf(menu1);
+    	printf("Please select one of the above options: ");
+
+        opt = 0;
+        while (opt == 0) {
+        	opt = getchar();
+        }
+
+        switch (opt) {
+
+        case 't':
+            memset(&args, 0, sizeof(args));
+            printf("\nCrypt Test\n");
+            wolfcrypt_test(&args);
+            printf("Crypt Test: Return code %d\n", args.return_code);
+            break;
+
+        case 'b':
+            memset(&args, 0, sizeof(args));
+            printf("\nBenchmark Test\n");
+            benchmark_test(&args);
+            printf("Benchmark Test: Return code %d\n", args.return_code);
+            break;
+
+        // All other cases go here
+        default: DEBUGOUT("\r\nSelection out of range\r\n"); break;
+        }
+    }
+}

@@ -107,6 +107,8 @@ extern "C" {
     #undef  ECC_TIMING_RESISTANT
     #define ECC_TIMING_RESISTANT
 
+    #define WOLFSSL_VALIDATE_ECC_KEYGEN
+
     #ifdef USE_FAST_MATH
         /* use reduced size math buffers for ecc points */
         #undef  ALT_ECC_SIZE
@@ -133,7 +135,7 @@ extern "C" {
 
 /* RSA */
 #undef NO_RSA
-#if 1
+#if 0
     #ifdef USE_FAST_MATH
         /* Maximum math bits (Max RSA key bits * 2) */
         #undef  FP_MAX_BITS
@@ -150,6 +152,7 @@ extern "C" {
 
 #else
     #define NO_RSA
+    #define FP_MAX_BITS     (2 * 384)
 #endif
 
 /* AES */
@@ -245,9 +248,6 @@ extern "C" {
         #endif
         #ifdef USE_NXP_LTC
             #define FREESCALE_USE_LTC
-            #define LTC_MAX_ECC_BITS    (384)
-            #define LTC_MAX_INT_BYTES   (256)
-
             //#define FREESCALE_LTC_TFM_RSA_4096_ENABLE
         #endif
     #endif
