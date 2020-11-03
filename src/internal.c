@@ -9586,7 +9586,7 @@ ProtocolVersion MakeDTLSv1_3(void)
     }
 #elif defined(FREESCALE_FREE_RTOS) || defined(FREESCALE_KSDK_FREERTOS)
 
-    #include "include/task.h"
+    #include "task.h"
 
     unsigned int LowResTimer(void)
     {
