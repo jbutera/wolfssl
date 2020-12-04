@@ -3023,7 +3023,7 @@ AC_ARG_ENABLE([shake256],
     [ ENABLED_SHAKE256=$ENABLED_SHA3 ]
     )
 
-AS_IF([test "x$ENABLED_FIPS" = "xyes"],[ENABLED_SHAKE256 = "no"])
+AS_IF([test "x$ENABLED_FIPS" = "xyes"],[ENABLED_SHAKE256="no"])
 
 if test "$ENABLED_SHAKE256" = "yes" || test "$ENABLED_SHAKE256" = "small"
 then
