@@ -14360,7 +14360,8 @@ static int test_wc_MakeRsaKey (void)
 
     RsaKey  genKey;
     WC_RNG  rng;
-    #if !defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)
+    #if (!defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)) && \
+        (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 4))
     int     bits = 1024;
     #else
     int     bits = 2048;
@@ -15021,7 +15022,8 @@ static int test_wc_RsaKeyToDer (void)
     RsaKey  genKey;
     WC_RNG  rng;
     byte*   der;
-    #if !defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)
+    #if (!defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)) && \
+        (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 4))
     int     bits = 1024;
     word32  derSz = 611;
     /* (2 x 128) + 2 (possible leading 00) + (5 x 64) + 5 (possible leading 00)
@@ -15131,7 +15133,8 @@ static int test_wc_RsaKeyToPublicDer (void)
     RsaKey      key;
     WC_RNG      rng;
     byte*       der;
-    #if !defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)
+    #if (!defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)) && \
+        (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 4))
     int         bits = 1024;
     word32      derLen = 162;
     #else
@@ -15230,7 +15233,8 @@ static int test_wc_RsaPublicEncryptDecrypt (void)
     const char* inStr = "Everyone gets Friday off.";
     word32  plainLen = 25;
     word32  inLen = (word32)XSTRLEN(inStr);
-    #if !defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)
+    #if (!defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)) && \
+        (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 4))
     int         bits = 1024;
     word32  cipherLen = 128;
     #else
@@ -15437,7 +15441,8 @@ static int test_wc_RsaSSL_SignVerify (void)
     const word32 plainSz = 25;
     word32  inLen = (word32)XSTRLEN(inStr);
     word32  idx = 0;
-    #if !defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)
+    #if (!defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)) && \
+        (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 4))
     int          bits = 1024;
     const word32 outSz = 128;
     #else
@@ -15599,7 +15604,8 @@ static int test_wc_RsaEncryptSize (void)
     }
 
     printf(testingFmt, "wc_RsaEncryptSize()");
-#if !defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)
+#if (!defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)) && \
+    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 4))
     if (ret == 0) {
         ret = MAKE_RSA_KEY(&key, 1024, WC_RSA_EXPONENT, &rng);
         if (ret == 0) {
@@ -15669,7 +15675,8 @@ static int test_wc_RsaFlattenPublicKey (void)
     byte    n[256];
     word32  eSz = sizeof(e);
     word32  nSz = sizeof(n);
-    #if !defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)
+    #if (!defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)) && \
+        (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 4))
     int         bits = 1024;
     #else
     int         bits = 2048;
