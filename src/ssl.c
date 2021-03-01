@@ -21138,7 +21138,7 @@ void wolfSSL_ASN1_OBJECT_free(WOLFSSL_ASN1_OBJECT* obj)
         return;
     }
     if ((obj->obj != NULL) && ((obj->dynamic & WOLFSSL_ASN1_DYNAMIC_DATA) != 0)) {
-        WOLFSSL_MSG("Freeing ASN1 data");
+        //WOLFSSL_MSG("Freeing ASN1 data");
         XFREE((void*)obj->obj, obj->heap, DYNAMIC_TYPE_ASN1);
         obj->obj = NULL;
     }
@@ -21149,7 +21149,7 @@ void wolfSSL_ASN1_OBJECT_free(WOLFSSL_ASN1_OBJECT* obj)
     }
     #endif
     if ((obj->dynamic & WOLFSSL_ASN1_DYNAMIC) != 0) {
-        WOLFSSL_MSG("Freeing ASN1 OBJECT");
+        //WOLFSSL_MSG("Freeing ASN1 OBJECT");
         XFREE(obj, NULL, DYNAMIC_TYPE_ASN1);
     }
 }
@@ -22824,7 +22824,7 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
     {
         WOLFSSL_ASN1_STRING* asn1;
 
-        WOLFSSL_ENTER("wolfSSL_ASN1_STRING_new");
+        //WOLFSSL_ENTER("wolfSSL_ASN1_STRING_new");
 
         asn1 = (WOLFSSL_ASN1_STRING*)XMALLOC(sizeof(WOLFSSL_ASN1_STRING), NULL,
                 DYNAMIC_TYPE_OPENSSL);
@@ -22873,7 +22873,7 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
     /* used to free a WOLFSSL_ASN1_STRING structure */
     void wolfSSL_ASN1_STRING_free(WOLFSSL_ASN1_STRING* asn1)
     {
-        WOLFSSL_ENTER("wolfSSL_ASN1_STRING_free");
+        //WOLFSSL_ENTER("wolfSSL_ASN1_STRING_free");
 
         if (asn1 != NULL) {
             if (asn1->length > 0 && asn1->data != NULL && asn1->isDynamic) {
@@ -22917,7 +22917,7 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
     {
         WOLFSSL_ASN1_STRING* asn1;
 
-        WOLFSSL_ENTER("wolfSSL_ASN1_STRING_type_new");
+        //WOLFSSL_ENTER("wolfSSL_ASN1_STRING_type_new");
 
         asn1 = wolfSSL_ASN1_STRING_new();
         if (asn1 == NULL) {
@@ -22938,7 +22938,7 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
     int wolfSSL_ASN1_STRING_type(const WOLFSSL_ASN1_STRING* asn1)
     {
 
-        WOLFSSL_ENTER("wolfSSL_ASN1_STRING_type");
+        //WOLFSSL_ENTER("wolfSSL_ASN1_STRING_type");
 
         if (asn1 == NULL) {
             return WOLFSSL_FAILURE;
@@ -22959,7 +22959,7 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
     {
         int sz;
 
-        WOLFSSL_ENTER("wolfSSL_ASN1_STRING_set");
+        //WOLFSSL_ENTER("wolfSSL_ASN1_STRING_set");
 
         if (asn1 == NULL || (data == NULL && dataSz < 0)) {
             return WOLFSSL_FAILURE;
@@ -23010,7 +23010,7 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
 
     unsigned char* wolfSSL_ASN1_STRING_data(WOLFSSL_ASN1_STRING* asn)
     {
-        WOLFSSL_ENTER("wolfSSL_ASN1_STRING_data");
+        //WOLFSSL_ENTER("wolfSSL_ASN1_STRING_data");
 
         if (asn) {
             return (unsigned char*)asn->data;
@@ -23023,7 +23023,7 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
 
     int wolfSSL_ASN1_STRING_length(WOLFSSL_ASN1_STRING* asn)
     {
-        WOLFSSL_ENTER("wolfSSL_ASN1_STRING_length");
+        //WOLFSSL_ENTER("wolfSSL_ASN1_STRING_length");
 
         if (asn) {
             return asn->length;
@@ -40108,7 +40108,7 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
     {
         WOLFSSL_X509_NAME* name;
 
-        WOLFSSL_ENTER("wolfSSL_X509_NAME_new");
+        //WOLFSSL_ENTER("wolfSSL_X509_NAME_new");
 
         name = (WOLFSSL_X509_NAME*)XMALLOC(sizeof(WOLFSSL_X509_NAME), NULL,
                 DYNAMIC_TYPE_X509);
@@ -42123,7 +42123,7 @@ err:
     {
         WOLFSSL_X509_NAME_ENTRY* ne;
 
-        WOLFSSL_ENTER("wolfSSL_X509_NAME_ENTRY_create_by_NID()");
+        //WOLFSSL_ENTER("wolfSSL_X509_NAME_ENTRY_create_by_NID()");
 
         if (!data) {
             WOLFSSL_MSG("Bad parameter");
@@ -42256,7 +42256,7 @@ err:
         WOLFSSL_X509_NAME_ENTRY* current = NULL;
         int i;
 
-        WOLFSSL_ENTER("wolfSSL_X509_NAME_add_entry()");
+        //WOLFSSL_ENTER("wolfSSL_X509_NAME_add_entry()");
 
         if (name == NULL || entry == NULL || entry->value == NULL) {
             WOLFSSL_MSG("NULL argument passed in");
@@ -42346,7 +42346,7 @@ err:
     {
         int ret;
         WOLFSSL_X509_NAME_ENTRY* entry;
-        WOLFSSL_ENTER("wolfSSL_X509_NAME_add_entry_by_NID");
+        //WOLFSSL_ENTER("wolfSSL_X509_NAME_add_entry_by_NID");
         entry = wolfSSL_X509_NAME_ENTRY_create_by_NID(NULL, nid, type, bytes,
                 len);
         if (entry == NULL)
@@ -42402,7 +42402,7 @@ err:
         const char* sName = NULL;
         int i;
 
-        WOLFSSL_ENTER("wolfSSL_OBJ_nid2obj()");
+        //WOLFSSL_ENTER("wolfSSL_OBJ_nid2obj()");
 
         for (i = 0; i < (int)WOLFSSL_OBJECT_INFO_SZ; i++) {
             if (wolfssl_object_info[i].nid == id) {
@@ -43270,7 +43270,7 @@ err:
     {
         WOLFSSL_ASN1_OBJECT* obj = NULL;
 
-        WOLFSSL_ENTER("wolfSSL_X509_NAME_ENTRY_get_object");
+        //WOLFSSL_ENTER("wolfSSL_X509_NAME_ENTRY_get_object");
         if (ne == NULL) return NULL;
         obj = wolfSSL_OBJ_nid2obj_ex(ne->nid, ne->object);
         if (obj != NULL) {
@@ -50212,7 +50212,7 @@ int wolfSSL_BN_cmp(const WOLFSSL_BIGNUM* a, const WOLFSSL_BIGNUM* b)
  *   length of BIGNUM in bytes, -1 if error */
 int wolfSSL_BN_bn2bin(const WOLFSSL_BIGNUM* bn, unsigned char* r)
 {
-    WOLFSSL_MSG("wolfSSL_BN_bn2bin");
+    //WOLFSSL_MSG("wolfSSL_BN_bn2bin");
 
     if (bn == NULL || bn->internal == NULL) {
         WOLFSSL_MSG("NULL bn error");
@@ -51804,7 +51804,7 @@ void wolfSSL_BN_init(WOLFSSL_BIGNUM* bn)
 
 void wolfSSL_BN_free(WOLFSSL_BIGNUM* bn)
 {
-    WOLFSSL_MSG("wolfSSL_BN_free");
+    //WOLFSSL_MSG("wolfSSL_BN_free");
     if (bn) {
         if (bn->internal) {
             mp_int* bni = (mp_int*)bn->internal;

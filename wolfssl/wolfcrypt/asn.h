@@ -549,8 +549,13 @@ enum Extensions_Sum {
     ISSUE_ALT_NAMES_OID       = 132,
     TLS_FEATURE_OID           = 92,  /* id-pe 24 */
     NETSCAPE_CT_OID           = 753, /* 2.16.840.1.113730.1.1 */
-    OCSP_NOCHECK_OID          = 121  /* 1.3.6.1.5.5.7.48.1.5
+    OCSP_NOCHECK_OID          = 121, /* 1.3.6.1.5.5.7.48.1.5
                                          id-pkix-ocsp-nocheck */
+
+    AKEY_PACKAGE_OID          = 1048,  /* 2.16.840.1.101.2.1.2.78.5 - RFC 5958 - Asymmetric Key Packages */
+    PKIX_ALG_OID              = 86,    /* 1.3.6.1.5.5.7.0.58 - RFC5912 - PKIX AlgorithmInformation-2009 */
+    PKIX_CN_OID               = 85,    /* 1.3.6.1.5.5.7.0.57 - RFC5912 - PKIX CommonTypes-2009 */
+    SMIME_CRYPTO_MSG_OID      = 114459,/* 1.2.840.113549.1.9.16.0.41 - RFC5911 SMIME CryptographicMessageSyntax-2009 */                                        
 };
 
 enum CertificatePolicy_Sum {
