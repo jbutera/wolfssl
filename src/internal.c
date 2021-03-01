@@ -11365,6 +11365,10 @@ int DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl, int ret,
             /* mark as verify error */
             args->verifyErr = 1;
         }
+    #ifdef WOLFSSL_NONBLOCK_OCSP
+        if (store->error == OCSP_WANT_READ)
+            ret = OCSP_WANT_READ;
+    #endif
     #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
         if (x509Free) {
             FreeX509(x509);
@@ -13082,7 +13086,28 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         #endif
 
             /* Do verify callback */
-            ret = DoVerifyCallback(SSL_CM(ssl), ssl, ret, args);
+            if (ret == OCSP_WANT_READ) {
+                if (ssl->verifyCallbackResult == OCSP_WANT_READ) {
+                    args->lastErr = ret = ssl->verifyCallbackResult;
+                    goto exit_ppc;
+                }
+                ssl->peerVerifyRet = ssl->verifyCallbackResult;
+                switch (ssl->peerVerifyRet)
+                {
+                    case X509_V_OK: ret = 0; break;
+                    default: ret = NO_PEER_CERT; break;
+                }
+            } else
+            {
+                ret = DoVerifyCallback(SSL_CM(ssl), ssl, ret, args);
+            #ifdef WOLFSSL_NONBLOCK_OCSP
+                if (ret == OCSP_WANT_READ) {
+                    ssl->verifyCallbackResult = ret;
+                    args->lastErr = ret;
+                    goto exit_ppc;
+                }
+            #endif
+            }
 
             if (ssl->options.verifyNone &&
                               (ret == CRL_MISSING || ret == CRL_CERT_REVOKED ||

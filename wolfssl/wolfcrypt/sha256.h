@@ -167,7 +167,10 @@ struct wc_Sha256 {
     cy_stc_crypto_v2_sha256_buffers_t sha_buffers;
 #else
     /* alignment on digest and buffer speeds up ARMv8 crypto operations */
-    ALIGN16 word32  digest[WC_SHA256_DIGEST_SIZE / sizeof(word32)];
+    union {
+        ALIGN16 word32  digest[WC_SHA256_DIGEST_SIZE / sizeof(word32)];
+        ALIGN16 word64  iv[WC_SHA256_DIGEST_SIZE / sizeof(word64)];
+    };
     ALIGN16 word32  buffer[WC_SHA256_BLOCK_SIZE  / sizeof(word32)];
     word32  buffLen;   /* in bytes          */
     word32  loLen;     /* length in bytes   */
