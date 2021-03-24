@@ -185,6 +185,123 @@ static WC_INLINE int GetMsgHash(WOLFSSL* ssl, byte* hash);
 
 #endif
 #endif
+#ifndef WOLFSSL_TLS13_LOG_KEYS
+#define WOLFSSL_TLS13_LOG_KEY(ssl, str, key)
+#else
+/* Log the TLS 1.3 key to either stderr or a file.
+ *
+ * ssl  SSL/TLS object.
+ * str  Name of the key.
+ * key  Key data to log.
+ */
+static void WOLFSSL_TLS13_LOG_KEY(WOLFSSL* ssl, const char* str, byte* key)
+{
+    int i;
+    int hashLen = 0;
+    XFILE fp = stderr;
+
+    if (ssl->fileKeyLog != (XFILE)0) {
+        fp = ssl->fileKeyLog;
+    }
+
+    switch (ssl->specs.mac_algorithm) {
+        #ifndef NO_SHA256
+        case sha256_mac:
+            hashLen = 32;
+            break;
+        #endif
+
+        #ifdef WOLFSSL_SHA384
+        case sha384_mac:
+            hashLen = 48;
+            break;
+        #endif
+
+        #ifdef WOLFSSL_TLS13_SHA512
+        case sha512_mac:
+            hashLen = 64;
+            break;
+        #endif
+    }
+
+    fprintf(fp, "%s ", str);
+    for (i = 0; i < 32; i++) {
+        fprintf(fp, "%02x", ssl->arrays->clientRandom[i]);
+    }
+    fprintf(fp, " ");
+    for (i = 0; i < hashLen; i++) {
+        fprintf(fp, "%02x", key[i]);
+    }
+    fprintf(fp, "\n");
+}
+#endif
+
+/* Extract data using HMAC, salt and input.
+ * RFC 5869 - HMAC-based Extract-and-Expand Key Derivation Function (HKDF)
+ *
+ * prk      The generated pseudorandom key.
+ * salt     The salt.
+ * saltLen  The length of the salt.
+ * ikm      The input keying material.
+ * ikmLen   The length of the input keying material.
+ * mac      The type of digest to use.
+ * returns 0 on success, otherwise failure.
+ */
+static int Tls13_HKDF_Extract(byte* prk, const byte* salt, int saltLen,
+                             byte* ikm, int ikmLen, int mac)
+{
+    int ret;
+    int hash = 0;
+    int len = 0;
+
+    switch (mac) {
+        #ifndef NO_SHA256
+        case sha256_mac:
+            hash = WC_SHA256;
+            len = WC_SHA256_DIGEST_SIZE;
+            break;
+        #endif
+
+        #ifdef WOLFSSL_SHA384
+        case sha384_mac:
+            hash = WC_SHA384;
+            len = WC_SHA384_DIGEST_SIZE;
+            break;
+        #endif
+
+        #ifdef WOLFSSL_TLS13_SHA512
+        case sha512_mac:
+            hash = WC_SHA512;
+            len = WC_SHA512_DIGEST_SIZE;
+            break;
+        #endif
+
+        default:
+            break;
+    }
+
+    /* When length is 0 then use zeroed data of digest length. */
+    if (ikmLen == 0) {
+        ikmLen = len;
+        XMEMSET(ikm, 0, len);
+    }
+
+#ifdef WOLFSSL_DEBUG_TLS
+    WOLFSSL_MSG("  Salt");
+    WOLFSSL_BUFFER(salt, saltLen);
+    WOLFSSL_MSG("  IKM");
+    WOLFSSL_BUFFER(ikm, ikmLen);
+#endif
+
+    ret = wc_HKDF_Extract(hash, salt, saltLen, ikm, ikmLen, prk);
+
+#ifdef WOLFSSL_DEBUG_TLS
+    WOLFSSL_MSG("  PRK");
+    WOLFSSL_BUFFER(prk, len);
+#endif
+
+    return ret;
+}
 
 /* Expand data using HMAC, salt and label and info.
  * TLS v1.3 defines this function. Use callback if available.
@@ -645,6 +762,7 @@ static int DeriveEarlyTrafficSecret(WOLFSSL* ssl, byte* key, int side)
     }
 #endif /* OPENSSL_EXTRA */
 #endif /* HAVE_SECRET_CALLBACK */
+    WOLFSSL_TLS13_LOG_KEY(ssl, "EARLY_EXPORTER_SECRET", key);
     return ret;
 }
 
@@ -703,6 +821,7 @@ static int DeriveClientHandshakeSecret(WOLFSSL* ssl, byte* key)
     }
 #endif /* OPENSSL_EXTRA */
 #endif /* HAVE_SECRET_CALLBACK */
+    WOLFSSL_TLS13_LOG_KEY(ssl, "CLIENT_HANDSHAKE_TRAFFIC_SECRET", key);
     return ret;
 }
 
@@ -760,6 +879,7 @@ static int DeriveServerHandshakeSecret(WOLFSSL* ssl, byte* key)
     }
 #endif /* OPENSSL_EXTRA */
 #endif /* HAVE_SECRET_CALLBACK */
+    WOLFSSL_TLS13_LOG_KEY(ssl, "SERVER_HANDSHAKE_TRAFFIC_SECRET", key);
     return ret;
 }
 
@@ -817,6 +937,7 @@ static int DeriveClientTrafficSecret(WOLFSSL* ssl, byte* key)
     }
 #endif /* OPENSSL_EXTRA */
 #endif /* HAVE_SECRET_CALLBACK */
+    WOLFSSL_TLS13_LOG_KEY(ssl, "CLIENT_TRAFFIC_SECRET_0", key);
     return ret;
 }
 
@@ -874,6 +995,7 @@ static int DeriveServerTrafficSecret(WOLFSSL* ssl, byte* key)
     }
 #endif /* OPENSSL_EXTRA */
 #endif /* HAVE_SECRET_CALLBACK */
+    WOLFSSL_TLS13_LOG_KEY(ssl, "SERVER_TRAFFIC_SECRET_0", key);
     return ret;
 }
 
@@ -920,6 +1042,7 @@ static int DeriveExporterSecret(WOLFSSL* ssl, byte* key)
     }
 #endif /* OPENSSL_EXTRA */
 #endif /* HAVE_SECRET_CALLBACK */
+    WOLFSSL_TLS13_LOG_KEY(ssl, "EXPORTER_SECRET", key);
     return ret;
 }
 
@@ -13835,6 +13958,54 @@ int tls13ShowSecrets(WOLFSSL* ssl, int id, const unsigned char* secret,
 #endif
 
 #undef ERROR_OUT
+
+#ifdef WOLFSSL_TLS13_LOG_KEYS
+/* Use the named file to log keys.
+ * File is opened now and closed when SSL context object is freed.
+ *
+ * ctx       The SSL/TLS CTX object.
+ * filename  Name of file to open.
+ * returns BAD_FUNC_ARG when file cannot be opened. 0 otherwise.
+ */
+int wolfSSL_CTX_use_key_log_file(WOLFSSL_CTX* ctx, const char* filename)
+{
+    int ret = 0;
+    XFILE fp;
+
+    fp = XFOPEN(filename, "wb");
+    if (fp == XBADFILE) {
+        ret = BAD_FUNC_ARG;
+    }
+    if (ret == 0) {
+        ctx->fileKeyLog = fp;
+    }
+
+    return ret;
+}
+
+/* Use the named file to log keys.
+ * File is opened now and closed when SSL object is freed.
+ *
+ * ctx       The SSL/TLS object.
+ * filename  Name of file to open.
+ * returns BAD_FUNC_ARG when file cannot be opened. 0 otherwise.
+ */
+int wolfSSL_use_key_log_file(WOLFSSL* ssl, const char* filename)
+{
+    int ret = 0;
+    XFILE fp;
+
+    fp = XFOPEN(filename, "wb");
+    if (fp == XBADFILE) {
+        ret = BAD_FUNC_ARG;
+    }
+    if (ret == 0) {
+        ssl->fileKeyLog = fp;
+    }
+
+    return ret;
+}
+#endif /* WOLFSSL_TLS13_LOG_KEYS */
 
 #endif /* !WOLFCRYPT_ONLY */
 

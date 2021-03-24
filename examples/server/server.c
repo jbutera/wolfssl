@@ -1549,6 +1549,10 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     char* crlDir = NULL;
 #endif
 
+#ifdef WOLFSSL_TLS13_LOG_KEYS
+    const char* keyLogFile = "tls13server.log";
+#endif
+
 #ifdef WOLFSSL_STATIC_MEMORY
     /* Note: Actual memory used is much less, this is the entire buffer buckets,
      * which is partitioned into pools of common sizes. To adjust the buckets
@@ -2943,6 +2947,15 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #ifdef HAVE_PK_CALLBACKS
     if (pkCallbacks)
         SetupPkCallbacks(ctx);
+#endif
+
+#ifdef WOLFSSL_TLS13_LOG_KEYS
+        if (keyLogFile != NULL) {
+            if (wolfSSL_CTX_use_key_log_file(ctx, keyLogFile) != 0) {
+                wolfSSL_CTX_free(ctx); ctx = NULL;
+                err_sys("Couldn't set file to log keys to.");
+            }
+        }
 #endif
 
     ssl = SSL_new(ctx);

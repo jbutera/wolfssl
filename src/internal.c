@@ -7325,6 +7325,10 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     ssl->disabledCurves = ctx->disabledCurves;
 #endif
 
+#ifdef WOLFSSL_TLS13_LOG_KEYS
+    ssl->fileKeyLog = ctx->fileKeyLog;
+#endif
+
     InitCiphers(ssl);
     InitCipherSpecs(&ssl->specs);
 

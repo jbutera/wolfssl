@@ -3922,6 +3922,9 @@ struct WOLFSSL_CTX {
 #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
     WOLFSSL_EchConfig* echConfigs;
 #endif
+#ifdef WOLFSSL_TLS13_LOG_KEYS
+    XFILE fileKeyLog;
+#endif
 };
 
 WOLFSSL_LOCAL
@@ -5860,6 +5863,9 @@ struct WOLFSSL {
     SSLSnifferSecretCb snifferSecretCb;
 #endif /* WOLFSSL_SNIFFER && WOLFSSL_SNIFFER_KEYLOGFILE */
 
+#ifdef WOLFSSL_TLS13_LOG_KEYS
+    XFILE fileKeyLog;
+#endif
 };
 
 /*
