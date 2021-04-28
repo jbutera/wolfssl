@@ -18561,7 +18561,7 @@ int wc_MIME_parse_headers(char* in, int inLen, MimeHdr** headers)
         else {
             mimeType = MIME_HDR;
         }
-        start = end = 0;
+        start = 0;
         lineLen = XSTRLEN(curLine);
 
         for (pos = 0; pos < lineLen; pos++) {
