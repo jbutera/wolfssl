@@ -10212,9 +10212,9 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
             }
 
         #ifdef HAVE_OCSP
-            /* trust for the lifetime of the responder's cert*/
+            /* trust for the lifetime of the responder's cert */
             if (cert->ocspNoCheckSet && verify == VERIFY_OCSP)
-                verify = NO_VERIFY;
+                verify = VERIFY;
         #endif
             /* advance past extensions */
             cert->srcIdx = cert->sigIndex;
