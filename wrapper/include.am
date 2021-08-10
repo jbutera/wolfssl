@@ -5,3 +5,4 @@
 include wrapper/python/wolfcrypt/include.am
 include wrapper/python/wolfssl/include.am
 include wrapper/CSharp/include.am
+include wrapper/Javascript/include.am

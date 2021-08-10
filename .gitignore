@@ -306,6 +306,9 @@ wolfcrypt/user-crypto/lib/libusercrypto.*
 # wolfSSL CSharp wrapper
 wrapper/CSharp/x64/
 
+wrapper/Javascript/local
+wrapper/Javascript/emsdk
+
 # Visual Studio Code Workspace Files
 *.vscode
 *.userprefs
