@@ -128,6 +128,11 @@ extern ${variable.value} ${variable.name};
     #define HAL_CONSOLE_UART huart2
     #define NO_STM32_RNG
     #define WOLFSSL_GENSEED_FORTEST
+#elif defined(STM32F446xx)
+    #define WOLFSSL_STM32F4
+    #define HAL_CONSOLE_UART huart3
+    #define NO_STM32_RNG
+    #define WOLFSSL_GENSEED_FORTEST
 #else
     #warning Please define a hardware platform!
     /* This means there is not a pre-defined platform for your board/CPU */
