@@ -3386,15 +3386,15 @@ int wolfSSL_get_alert_history(WOLFSSL* ssl, WOLFSSL_ALERT_HISTORY *h)
 }
 
 #ifdef OPENSSL_EXTRA
-/* returns SSL_WRITING, SSL_READING or SSL_NOTHING */
+/* returns WOLFSSL_WRITING, WOLFSSL_READING or WOLFSSL_NOTHING */
 int wolfSSL_want(WOLFSSL* ssl)
 {
-    int rw_state = SSL_NOTHING;
+    int rw_state = WOLFSSL_NOTHING;
     if (ssl) {
         if (ssl->error == WANT_READ)
-            rw_state = SSL_READING;
+            rw_state = WOLFSSL_READING;
         else if (ssl->error == WANT_WRITE)
-            rw_state = SSL_WRITING;
+            rw_state = WOLFSSL_WRITING;
     }
     return rw_state;
 }
@@ -19386,12 +19386,12 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         /* WOLFSSL_MODE_ACCEPT_MOVING_WRITE_BUFFER is wolfSSL default mode */
 
         WOLFSSL_ENTER("SSL_CTX_set_mode");
-        switch(mode) {
-            case SSL_MODE_ENABLE_PARTIAL_WRITE:
+        switch (mode) {
+            case WOLFSSL_MODE_ENABLE_PARTIAL_WRITE:
                 ctx->partialWrite = 1;
                 break;
             #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
-            case SSL_MODE_RELEASE_BUFFERS:
+            case WOLFSSL_MODE_RELEASE_BUFFERS:
                 WOLFSSL_MSG("SSL_MODE_RELEASE_BUFFERS not implemented.");
                 break;
             #endif
@@ -49906,19 +49906,19 @@ int wolfSSL_X509_check_issued(WOLFSSL_X509 *issuer, WOLFSSL_X509 *subject)
     WOLFSSL_X509_NAME *subjectName = wolfSSL_X509_get_subject_name(issuer);
 
     if (issuerName == NULL || subjectName == NULL)
-        return X509_V_ERR_SUBJECT_ISSUER_MISMATCH;
+        return WOLFX509_V_ERR_SUBJECT_ISSUER_MISMATCH;
 
     /* Literal matching of encoded names and key ids. */
     if (issuerName->sz != subjectName->sz ||
            XMEMCMP(issuerName->name, subjectName->name, subjectName->sz) != 0) {
-        return X509_V_ERR_SUBJECT_ISSUER_MISMATCH;
+        return WOLFX509_V_ERR_SUBJECT_ISSUER_MISMATCH;
     }
 
     if (subject->authKeyId != NULL && issuer->subjKeyId != NULL) {
         if (subject->authKeyIdSz != issuer->subjKeyIdSz ||
                 XMEMCMP(subject->authKeyId, issuer->subjKeyId,
                         issuer->subjKeyIdSz) != 0) {
-            return X509_V_ERR_SUBJECT_ISSUER_MISMATCH;
+            return WOLFX509_V_ERR_SUBJECT_ISSUER_MISMATCH;
         }
     }
 
@@ -59528,21 +59528,21 @@ static int GetX509Error(int e)
 {
     switch (e) {
         case ASN_BEFORE_DATE_E:
-            return X509_V_ERR_ERROR_IN_CERT_NOT_BEFORE_FIELD;
+            return WOLFX509_V_ERR_ERROR_IN_CERT_NOT_BEFORE_FIELD;
         case ASN_AFTER_DATE_E:
-            return X509_V_ERR_ERROR_IN_CERT_NOT_AFTER_FIELD;
+            return WOLFX509_V_ERR_ERROR_IN_CERT_NOT_AFTER_FIELD;
         case ASN_NO_SIGNER_E:
-            return X509_V_ERR_INVALID_CA;
+            return WOLFX509_V_ERR_INVALID_CA;
         case ASN_SELF_SIGNED_E:
-            return X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT;
+            return WOLFX509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT;
         case ASN_PATHLEN_INV_E:
         case ASN_PATHLEN_SIZE_E:
-            return X509_V_ERR_PATH_LENGTH_EXCEEDED;
+            return WOLFX509_V_ERR_PATH_LENGTH_EXCEEDED;
         case ASN_SIG_OID_E:
         case ASN_SIG_CONFIRM_E:
         case ASN_SIG_HASH_E:
         case ASN_SIG_KEY_E:
-            return X509_V_ERR_CERT_SIGNATURE_FAILURE;
+            return WOLFX509_V_ERR_CERT_SIGNATURE_FAILURE;
         default:
             WOLFSSL_MSG("Error not configured or implemented yet");
             return e;
@@ -59597,11 +59597,11 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
 
         if (XVALIDATE_DATE(afterDate, (byte)ctx->current_cert->notAfter.type,
                                                                    AFTER) < 1) {
-            error = X509_V_ERR_CERT_HAS_EXPIRED;
+            error = WOLFX509_V_ERR_CERT_HAS_EXPIRED;
         }
         else if (XVALIDATE_DATE(beforeDate,
                     (byte)ctx->current_cert->notBefore.type, BEFORE) < 1) {
-            error = X509_V_ERR_CERT_NOT_YET_VALID;
+            error = WOLFX509_V_ERR_CERT_NOT_YET_VALID;
         }
 
         if (error != 0 ) {
