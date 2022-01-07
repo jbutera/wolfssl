@@ -2966,6 +2966,15 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
             err_sys_ex(runWithErrors, "SSL in error state");
         }
 
+        if (resume == 1 && resumeCount >= 1) {
+            if (wolfSSL_session_reused(ssl))
+                printf("reused session id\n");
+            else {
+                /* throw error here, since we expected to do session resumption */
+                err_sys_ex(runWithErrors, "didn't reuse session id!!!");
+            }
+        }
+
         /* if the caller requested a particular cipher, check here that either
          * a canonical name of the established cipher matches the requested
          * cipher name, or the requested cipher name is marked as an alias

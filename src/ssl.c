@@ -14968,6 +14968,18 @@ static WC_INLINE word32 HashSession(const byte* sessionID, word32 len, int* erro
 WOLFSSL_ABI
 void wolfSSL_flush_sessions(WOLFSSL_CTX* ctx, long tm)
 {
+#ifdef DEBUG_WOLFSSL
+    /* allow clearing the session cache variable for testing */
+    int i;
+    for (i = 0; i < SESSION_ROWS; i++) {
+        SessionRow* row = &SessionCache[i];
+        SESSION_ROW_LOCK(row);
+        row->nextIdx = 0;
+        row->totalCount = 0;
+        XMEMSET(row->Sessions, 0, sizeof(row->Sessions));
+        SESSION_ROW_UNLOCK(row);
+    }
+#endif
     /* static table now, no flushing needed */
     (void)ctx;
     (void)tm;

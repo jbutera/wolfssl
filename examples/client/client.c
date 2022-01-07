@@ -4074,8 +4074,10 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
         if (wolfSSL_session_reused(sslResume))
             printf("reused session id\n");
-        else
-            printf("didn't reuse session id!!!\n");
+        else {
+            /* throw error here, since we expected to do session resumption */
+            err_sys("didn't reuse session id!!!");
+        }
 
 #ifdef HAVE_ALPN
         if (alpnList != NULL) {
