@@ -30732,6 +30732,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
         if (len > SESSION_TICKET_LEN ||
              len < (word32)(sizeof(InternalTicket) + WOLFSSL_TICKET_FIXED_SZ)) {
+            WOLFSSL_MSG("Bad user internal ticket len");
             return BAD_TICKET_MSG_SZ;
         }
 
@@ -30740,6 +30741,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         /* decrypt */
         ato16(et->enc_len, &inLen);
         if (inLen > (word16)(len - WOLFSSL_TICKET_FIXED_SZ)) {
+            WOLFSSL_MSG("Bad user ticket encrypt len");
             return BAD_TICKET_MSG_SZ;
         }
         outLen = inLen;   /* may be reduced by user padding */
