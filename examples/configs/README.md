@@ -10,6 +10,7 @@ Example wolfSSL configuration file templates for use when autoconf is not availa
 * `user_settings_wolfboot_keytools.h`: This from wolfBoot tools/keytools and is ECC, RSA, ED25519 and ChaCha20.
 * `user_settings_fipsv2.h`: The FIPS v2 (3389) 140-2 certificate build options.
 * `user_settings_stm32.h`: Example configuration file generated from the wolfSSL STM32 Cube pack.
+* `user_settings_wolftpm.h`: Example configuration generated from `./configure --enable-wolftpm`.
 
 ## Usage
 
