@@ -42,6 +42,7 @@
 #endif
 
 #define ECDSA_KEY_VERSION       1
+#define ECDH_KEY_VERSION        1
 
 static const char WC_NAME_ECDH[] = "ecdh";
 #if defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)
@@ -81,6 +82,7 @@ static int KcapiEcc_CurveId(int curve_id, word32* kcapiCurveId)
 int KcapiEcc_MakeKey(ecc_key* key, int keysize, int curve_id)
 {
     int ret = 0;
+    int sz = 0;
     word32 kcapiCurveId;
 
     if (curve_id == ECC_CURVE_DEF) {
@@ -117,15 +119,24 @@ int KcapiEcc_MakeKey(ecc_key* key, int keysize, int curve_id)
         ret = kcapi_kpp_ecdh_setcurve(key->handle, kcapiCurveId);
     }
     if (ret == 0) {
-        ret = (int)kcapi_kpp_keygen(key->handle, key->pubkey_raw,
+        ret = kcapi_kpp_setkey(key->handle, NULL, 0);
+        if (ret >= 0) {
+            ret = 0;
+        }
+    }
+    if (ret == 0) {
+        sz = ret = (int)kcapi_kpp_keygen(key->handle, key->pubkey_raw,
                                sizeof(key->pubkey_raw), KCAPI_ACCESS_HEURISTIC);
     }
     if (ret >= 0) {
-        ret = mp_read_unsigned_bin(key->pubkey.x, key->pubkey_raw, ret / 2);
+        ret = mp_read_unsigned_bin(key->pubkey.x, key->pubkey_raw, sz / 2);
     }
     if (ret == 0) {
-        ret = mp_read_unsigned_bin(key->pubkey.y, key->pubkey_raw + ret / 2,
-                                   ret / 2);
+        ret = mp_read_unsigned_bin(key->pubkey.y, key->pubkey_raw + sz / 2,
+                                   sz / 2);
+    }
+    if (ret == 0) {
+        key->type = ECC_PRIVATEKEY;
     }
     if ((ret != 0) && (key->handle != NULL)) {
         kcapi_kpp_destroy(key->handle);
@@ -136,17 +147,46 @@ int KcapiEcc_MakeKey(ecc_key* key, int keysize, int curve_id)
 }
 
 #ifdef HAVE_ECC_DHE
+static int KcapiEcc_SetPrivKeyDh(ecc_key* key)
+{
+    int ret;
+    unsigned char priv[KCAPI_PARAM_SZ + MAX_ECC_BYTES];
+    word32 keySz = key->dp->size;
+    word32 kcapiCurveId;
+
+    ret = KcapiEcc_CurveId(key->dp->id, &kcapiCurveId);
+    if (ret == MP_OKAY) {
+        priv[0] = ECDH_KEY_VERSION;
+        priv[1] = kcapiCurveId;
+        ret = wc_export_int(&key->k, priv + 2, &keySz, keySz,
+                            WC_TYPE_UNSIGNED_BIN);
+    }
+    if (ret == MP_OKAY) {
+        ret = kcapi_kpp_setkey(key->handle, priv, KCAPI_PARAM_SZ + keySz);
+        if (ret >= 0) {
+            ret = 0;
+        }
+    }
+
+    return ret;
+}
+
 int KcapiEcc_SharedSecret(ecc_key* private_key, ecc_key* public_key, byte* out,
                           word32* outlen)
 {
-    int ret;
+    int ret = 0;
 
-    ret = (int)kcapi_kpp_ssgen(private_key->handle, public_key->pubkey_raw,
-                               public_key->dp->size * 2, out, *outlen,
-                               KCAPI_ACCESS_HEURISTIC);
-    if (ret >= 0) {
-        *outlen = ret;
-        ret = 0;
+    if (!mp_iszero(&private_key->k)) {
+        ret = KcapiEcc_SetPrivKeyDh(private_key);
+    }
+    if (ret == 0) {
+        ret = (int)kcapi_kpp_ssgen(private_key->handle, public_key->pubkey_raw,
+                                   public_key->dp->size * 2, out, *outlen,
+                                   KCAPI_ACCESS_HEURISTIC);
+        if (ret >= 0) {
+            *outlen = ret;
+            ret = 0;
+        }
     }
 
     return ret;
@@ -170,6 +210,9 @@ static int KcapiEcc_SetPrivKey(ecc_key* key)
     }
     if (ret == MP_OKAY) {
         ret = kcapi_akcipher_setkey(key->handle, priv, KCAPI_PARAM_SZ + keySz);
+        if (ret >= 0) {
+            ret = 0;
+        }
     }
 
     return ret;
@@ -245,6 +288,9 @@ int KcapiEcc_SetPubKey(ecc_key* key)
         key->pubkey_raw[1] = kcapiCurveId;
 
         ret = kcapi_akcipher_setpubkey(key->handle, key->pubkey_raw, len);
+        if (ret >= 0) {
+            ret = 0;
+        }
     }
 
     return ret;
