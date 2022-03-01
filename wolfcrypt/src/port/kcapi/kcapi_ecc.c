@@ -147,12 +147,30 @@ int KcapiEcc_MakeKey(ecc_key* key, int keysize, int curve_id)
 }
 
 #ifdef HAVE_ECC_DHE
+static int KcapiEcc_SetPrivKeyDh(ecc_key* key, word32 kcapiCurveId)
+{
+    byte priv[KCAPI_PARAM_SZ + MAX_ECC_BYTES];
+    word32 keySz = key->dp->size;
+    int ret;
+
+    priv[0] = ECDH_KEY_VERSION;
+    priv[1] = kcapiCurveId;
+    ret = wc_export_int(&key->k, priv + 2, &keySz, keySz, WC_TYPE_UNSIGNED_BIN);
+    if (ret == 0) {
+        ret = kcapi_kpp_setkey(key->handle, priv, KCAPI_PARAM_SZ + keySz);
+        if (ret >= 0) {
+            ret = 0;
+        }
+    }
+
+    return ret;
+}
+
 int KcapiEcc_SharedSecret(ecc_key* private_key, ecc_key* public_key, byte* out,
                           word32* outlen)
 {
     int ret;
-    byte priv[KCAPI_PARAM_SZ + MAX_ECC_BYTES];
-    word32 kcapiCurveId;
+    word32 kcapiCurveId = 0;
     byte* buf_aligned = NULL;
     byte* pub_aligned = NULL;
     byte* out_aligned = NULL;
@@ -169,18 +187,7 @@ int KcapiEcc_SharedSecret(ecc_key* private_key, ecc_key* public_key, byte* out,
 
     /* if a private key value is set, load and use it */
     if (!mp_iszero(&private_key->k)) {
-        word32 keySz = private_key->dp->size;
-        priv[0] = ECDH_KEY_VERSION;
-        priv[1] = kcapiCurveId;
-        ret = wc_export_int(&private_key->k, priv + 2, &keySz, keySz,
-                            WC_TYPE_UNSIGNED_BIN);
-        if (ret == MP_OKAY) {
-            ret = kcapi_kpp_setkey(private_key->handle,
-                priv, KCAPI_PARAM_SZ + keySz);
-            if (ret >= 0) {
-                ret = 0;
-            }
-        }
+        ret = KcapiEcc_SetPrivKeyDh(private_key, kcapiCurveId);
     }
     if (ret == 0) {
         /* setup aligned pointers */
@@ -239,7 +246,7 @@ static int KcapiEcc_SetPrivKey(ecc_key* key)
         ret = wc_export_int(&key->k, priv + 2, &keySz, keySz,
                             WC_TYPE_UNSIGNED_BIN);
     }
-    if (ret == MP_OKAY) {
+    if (ret == 0) {
         ret = kcapi_akcipher_setkey(key->handle, priv, KCAPI_PARAM_SZ + keySz);
         if (ret >= 0) {
             ret = 0;
