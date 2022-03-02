@@ -147,25 +147,6 @@ int KcapiEcc_MakeKey(ecc_key* key, int keysize, int curve_id)
 }
 
 #ifdef HAVE_ECC_DHE
-static int KcapiEcc_SetPrivKeyDh(ecc_key* key, word32 kcapiCurveId)
-{
-    byte priv[KCAPI_PARAM_SZ + MAX_ECC_BYTES];
-    word32 keySz = key->dp->size;
-    int ret;
-
-    priv[0] = ECDH_KEY_VERSION;
-    priv[1] = kcapiCurveId;
-    ret = wc_export_int(&key->k, priv + 2, &keySz, keySz, WC_TYPE_UNSIGNED_BIN);
-    if (ret == 0) {
-        ret = kcapi_kpp_setkey(key->handle, priv, KCAPI_PARAM_SZ + keySz);
-        if (ret >= 0) {
-            ret = 0;
-        }
-    }
-
-    return ret;
-}
-
 int KcapiEcc_SharedSecret(ecc_key* private_key, ecc_key* public_key, byte* out,
                           word32* outlen)
 {
@@ -186,8 +167,17 @@ int KcapiEcc_SharedSecret(ecc_key* private_key, ecc_key* public_key, byte* out,
     }
 
     /* if a private key value is set, load and use it */
-    if (!mp_iszero(&private_key->k)) {
-        ret = KcapiEcc_SetPrivKeyDh(private_key, kcapiCurveId);
+    if (mp_iszero(&private_key->k) != MP_YES) {
+        byte priv[MAX_ECC_BYTES];
+        word32 keySz = private_key->dp->size;
+        ret = wc_export_int(&private_key->k, priv, &keySz, keySz,
+                            WC_TYPE_UNSIGNED_BIN);
+        if (ret == 0) {
+            ret = kcapi_kpp_setkey(private_key->handle, priv, keySz);
+            if (ret >= 0) {
+                ret = 0;
+            }
+        }
     }
     if (ret == 0) {
         /* setup aligned pointers */
