@@ -238,9 +238,6 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     ssize_t rc;
     size_t  pageSz = (size_t)sysconf(_SC_PAGESIZE);
 
-    /* round dataSz up to nearest pageSz */
-    dataSz = ((dataSz + ((word32)pageSz - 1)) & ~((word32)pageSz - 1));
-
     /* argument checks */
     if (aes == NULL || authTagSz > AES_BLOCK_SIZE) {
         ret = BAD_FUNC_ARG;
@@ -334,9 +331,6 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     word32  outSz = authInSz + sz;
     ssize_t rc;
     size_t  pageSz = (size_t)sysconf(_SC_PAGESIZE);
-
-    /* round dataSz up to nearest pageSz */
-    dataSz = ((dataSz + ((word32)pageSz - 1)) & ~((word32)pageSz - 1));
 
     /* argument checks */
     if (aes == NULL || (sz != 0 && (in == NULL || out == NULL)) ||
