@@ -38950,7 +38950,6 @@ void wolfSSL_EC_KEY_free(WOLFSSL_EC_KEY *key)
     WOLFSSL_ENTER("wolfSSL_EC_KEY_free");
 
     if (key != NULL) {
-        int doFree = 0;
         void* heap = key->heap;
 
     #ifndef SINGLE_THREADED
@@ -38977,15 +38976,6 @@ void wolfSSL_EC_KEY_free(WOLFSSL_EC_KEY *key)
             wc_ecc_free((ecc_key*)key->internal);
             XFREE(key->internal, heap, DYNAMIC_TYPE_ECC);
         }
-#endif
-        /* only free if all references to it are done */
-        key->refCount--;
-        if (key->refCount == 0) {
-            doFree = 1;
-        }
-#ifndef SINGLE_THREADED
-        wc_UnLockMutex(&key->refMutex);
-#endif
 
         if (doFree) {
             if (key->internal != NULL) {
