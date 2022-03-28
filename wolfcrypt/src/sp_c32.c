@@ -22512,7 +22512,7 @@ static void sp_256_cond_copy_9(sp_digit* r, const sp_digit* a, const sp_digit m)
  * n  Number of times to double
  * t  Temporary ordinate data.
  */
-static void sp_256_proj_point_dbl_n_9(sp_point_256* p, int n,
+static void sp_256_proj_point_dbl_n_9(sp_point_256* p, int i,
     sp_digit* t)
 {
     sp_digit* w = t;
@@ -22527,6 +22527,7 @@ static void sp_256_proj_point_dbl_n_9(sp_point_256* p, int n,
     x = p->x;
     y = p->y;
     z = p->z;
+    volatile int n = i;
 
     /* Y = 2*Y */
     sp_256_mont_dbl_9(y, y, p256_mod);
