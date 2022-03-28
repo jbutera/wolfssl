@@ -22523,11 +22523,11 @@ static void sp_256_proj_point_dbl_n_9(sp_point_256* p, int i,
     sp_digit* x;
     sp_digit* y;
     sp_digit* z;
+    volatile int n = i;
 
     x = p->x;
     y = p->y;
     z = p->z;
-    volatile int n = i;
 
     /* Y = 2*Y */
     sp_256_mont_dbl_9(y, y, p256_mod);
