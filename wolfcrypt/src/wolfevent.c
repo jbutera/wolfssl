@@ -125,7 +125,9 @@ int wolfEventQueue_Pop(WOLF_EVENT_QUEUE* queue, WOLF_EVENT** event)
 
     /* Pop first item off queue */
     *event = queue->head;
-    ret = wolfEventQueue_Remove(queue, *event);
+    if (*event != NULL) {
+        ret = wolfEventQueue_Remove(queue, *event);
+    }
 
 #ifndef SINGLE_THREADED
     wc_UnLockMutex(&queue->lock);
@@ -199,13 +201,13 @@ int wolfEventQueue_Poll(WOLF_EVENT_QUEUE* queue, void* context_filter,
     }
 
 #ifndef SINGLE_THREADED
-    /* In single threaded mode "event_queue.lock" doesn't exist */
+    /* In single threaded mode "queue->lock" doesn't exist */
     if ((ret = wc_LockMutex(&queue->lock)) != 0) {
         return ret;
     }
 #endif
 
-    /* iterrate event queue */
+    /* iterate event queue */
     for (event = queue->head; event != NULL; event = event->next)
     {
         /* optional filter based on context */
@@ -256,7 +258,7 @@ int wolfEventQueue_Count(WOLF_EVENT_QUEUE* queue)
     }
 
 #ifndef SINGLE_THREADED
-    /* In single threaded mode "event_queue.lock" doesn't exist */
+    /* In single threaded mode "queue->lock" doesn't exist */
     if ((ret = wc_LockMutex(&queue->lock)) != 0) {
         return ret;
     }
