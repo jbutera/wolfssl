@@ -1054,10 +1054,15 @@ static int InitSha256(wc_Sha256* sha256)
 
             #if defined(WOLFSSL_ESP32WROOM32_CRYPT) && \
                 !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_HASH)
-                if (sha256->ctx.mode == ESP32_SHA_INIT){
+                /* ESP32 hardware can only handle only active hardware hashing
+                 * at a time. If the mutex lock is acquired the first time then
+                 * that Sha256 instance has exclusive access to hardware. The 
+                 * final or free needs to release the mutex. Operations that 
+                 * do not get the lock fallback to software based Sha256 */
+                if (sha256->ctx.mode == ESP32_SHA_INIT) {
                     esp_sha_try_hw_lock(&sha256->ctx);
                 }
-                if (sha256->ctx.mode == ESP32_SHA_SW){
+                if (sha256->ctx.mode == ESP32_SHA_SW) {
                     ret = XTRANSFORM(sha256, (const byte*)local);
                 } else {
                     esp_sha256_process(sha256, (const byte*)local);
@@ -1702,6 +1707,12 @@ void wc_Sha256Free(wc_Sha256* sha256)
 #ifdef WOLFSSL_IMXRT_DCP
     DCPSha256Free(sha256);
 #endif
+
+#if defined(WOLFSSL_ESP32WROOM32_CRYPT) && \
+    !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_HASH)
+    /* TODO: Make sure the ESP32 crypto mutex is released (in case final is not
+     * called */
+#endif
 }
 
 #endif /* !defined(WOLFSSL_HAVE_PSA) || defined(WOLFSSL_PSA_NO_HASH) */
@@ -1850,11 +1861,11 @@ int wc_Sha256GetHash(wc_Sha256* sha256, byte* hash)
 
 #if  defined(WOLFSSL_ESP32WROOM32_CRYPT) && \
     !defined(NO_WOLFSSL_ESP32WROOM32_CRYPT_HASH)
-    if(sha256->ctx.mode == ESP32_SHA_INIT){
+    /* TODO: Investigate this edge case... */
+    if (sha256->ctx.mode == ESP32_SHA_INIT) {
         esp_sha_try_hw_lock(&sha256->ctx);
     }
-    if(sha256->ctx.mode == ESP32_SHA_HW)
-    {
+    if (sha256->ctx.mode == ESP32_SHA_HW) {
         esp_sha256_digest_process(sha256, 0);
     }
 #endif
