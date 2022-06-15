@@ -27,10 +27,11 @@ INC = -I$(USER_SETTINGS_DIR) \
 DEF = -DWOLFSSL_USER_SETTINGS
 
 # Architecture
-ARCHFLAGS ?= -mcpu=cortex-m4 -mthumb -mabi=aapcs -DUSE_WOLF_ARM_STARTUP
+#ARCHFLAGS ?= -mcpu=cortex-m4 -mthumb -mabi=aapcs -DUSE_WOLF_ARM_STARTUP
 #ARCHFLAGS = -mcpu=cortex-m0 -mthumb -mabi=aapcs -DUSE_WOLF_ARM_STARTUP
 #ARCHFLAGS = -mcpu=cortex-r5 -mthumb -mabi=aapcs
 #ARCHFLAGS = -mcpu=cortex-a53 -mthumb -mabi=aapcs
+ARCHFLAGS = -march=armv3 -mno-thumb-interwork
 
 # Compiler and linker flags
 ASFLAGS ?= $(ARCHFLAGS)

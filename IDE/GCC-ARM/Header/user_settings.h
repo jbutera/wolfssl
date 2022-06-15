@@ -64,7 +64,7 @@ extern "C" {
 
 /* Wolf Single Precision Math */
 #undef WOLFSSL_SP
-#if 0
+#if 1
     #define WOLFSSL_SP
     #define WOLFSSL_SP_SMALL      /* use smaller version of code */
     #define WOLFSSL_HAVE_SP_RSA
@@ -75,10 +75,12 @@ extern "C" {
 
     /* SP Assembly Speedups */
     #define WOLFSSL_SP_ASM      /* required if using the ASM versions */
-    //#define WOLFSSL_SP_ARM32_ASM
+    #define WOLFSSL_SP_ARM32_ASM
     //#define WOLFSSL_SP_ARM64_ASM
     //#define WOLFSSL_SP_ARM_THUMB_ASM
-    #define WOLFSSL_SP_ARM_CORTEX_M_ASM
+    //#define WOLFSSL_SP_ARM_CORTEX_M_ASM
+
+    #define WOLFSSL_SP_ARM_ARCH 6
 #endif
 
 /* ------------------------------------------------------------------------- */
