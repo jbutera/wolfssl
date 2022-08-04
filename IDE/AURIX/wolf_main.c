@@ -27,6 +27,11 @@
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/random.h> /* for CUSTOM_RAND_TYPE */
+#include <wolfssl/wolfcrypt/logging.h>
+#include <wolfssl/wolfcrypt/wc_port.h>
+#ifndef WOLFCRYPT_ONLY
+#include <wolfssl/ssl.h>
+#endif
 #include <wolfcrypt/test/test.h>
 #include <wolfcrypt/benchmark/benchmark.h>
 
@@ -78,7 +83,7 @@ double current_time(int reset)
     uint64_t timeMs, ticks = IfxStm_get(&MODULE_STM0);
     (void)reset;
     timeMs = ticks / (IfxStm_getFrequency(&MODULE_STM0) / 1000);
-    timeNow = (timeMs / 1000); // sec
+    timeNow = (double)(timeMs / 1000); // sec
     timeNow += (double)(timeMs % 1000) / 1000; // ms
     return timeNow;
 }

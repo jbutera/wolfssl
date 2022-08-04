@@ -243,7 +243,7 @@ extern unsigned int my_rng_seed_gen(void);
 /* ChaCha20 / Poly1305 */
 #undef HAVE_CHACHA
 #undef HAVE_POLY1305
-#if 1
+#if 0
     #define HAVE_CHACHA
     #define HAVE_POLY1305
 
@@ -270,7 +270,7 @@ extern unsigned int my_rng_seed_gen(void);
 /* ------------------------------------------------------------------------- */
 /* Sha */
 #undef NO_SHA
-#if 1
+#if 0
     /* on by default */
     /* 1k smaller, but 25% slower */
     //#define USE_SLOW_SHA
@@ -294,12 +294,12 @@ extern unsigned int my_rng_seed_gen(void);
 
 /* Sha512 */
 #undef WOLFSSL_SHA512
-#if 0
+#if 1
     #define WOLFSSL_SHA512
 
     /* Sha384 */
     #undef  WOLFSSL_SHA384
-    #if 0
+    #if 1
         #define WOLFSSL_SHA384
     #endif
 
@@ -421,7 +421,7 @@ extern unsigned int my_rng_seed_gen(void);
 #if 0
     #define SMALL_SESSION_CACHE
 #else
-    #define NO_SESSION_CACHE
+#define NO_SESSION_CACHE
 #endif
 
 

@@ -106,9 +106,8 @@ Benchmark Test: Return code 0
 
 ## Running wolfCrypt on the HSM (Cortex M3)
 
-Coming soon
+For Infineon AURIX processors with the HSM option installed it includes a user programmable Cortex-M3 (100MHz) core.
+This core runs custom code to provide an "bridged" interface from application code to secure functions.
+This core provides access to the cryptographic hardware and protected flash/RAM.
 
-
-## Support
-
-For questions please email facts@wolfssl.com
+To request a demo of the HSM core please email facts@wolfssl.com.

@@ -67,6 +67,7 @@ int fputc(int ch, FILE *f)
     }
     count = 1;
     IfxAsclin_Asc_write(&g_asc, &ch, &count, TIME_INFINITE);
+    (void)f; /* always assume STDIO */
     return ch;
 }
 
@@ -122,6 +123,9 @@ int send_UART(const char* str)
     return (int)count;
 }
 
+extern void hsm_TestInit(void);
+extern void main_hsm(void);
+
 void core0_main(void)
 {
     IfxCpu_enableInterrupts();
@@ -139,11 +143,23 @@ void core0_main(void)
     /* Initialize the UART to board VCOM */
     init_UART();
 
+    /* Init board LED */
+    IfxPort_setPinModeOutput(&MODULE_P33,4, IfxPort_OutputMode_pushPull, IfxPort_OutputIdx_general);
+    IfxPort_setPinHigh(&MODULE_P33,4);
+
+    hsm_TestInit();
+
     /* bare metal loop */
     while(1)
     {
         extern void run_wolf_tests(void);
         run_wolf_tests();
+
+        /* start HSM test suite */
+        main_hsm();
+
+        /* Toggle the state of the LED */
+    	IfxPort_togglePin(&MODULE_P33, 4);
 
         /* wait 5 seconds */
         waitTime(IfxStm_getTicksFromMilliseconds(BSP_DEFAULT_TIMER, 5 * 1000));
