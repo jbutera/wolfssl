@@ -5207,6 +5207,10 @@ static int TLSX_SessionTicket_Parse(WOLFSSL* ssl, const byte* input,
         } else {
             /* got actual ticket from client */
             ret = DoClientTicket(ssl, input, length);
+        #ifdef WOLFSSL_ASYNC_CRYPT
+            if (ret == WC_PENDING_E)
+                return ret;
+        #endif
             if (ret == WOLFSSL_TICKET_RET_OK) {    /* use ticket to resume */
                 WOLFSSL_MSG("Using existing client ticket");
                 ssl->options.useTicket    = 1;

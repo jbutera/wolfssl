@@ -2909,7 +2909,9 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
         SetupPkCallbacks(ctx);
 #endif
 
-    ssl = SSL_new(ctx);
+    if (ssl == NULL) {
+        ssl = SSL_new(ctx);
+    }
     if (ssl == NULL)
         err_sys_ex(catastrophic, "unable to create an SSL object");
 
@@ -3720,7 +3722,13 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
         wolfSSL_PrintStatsConn(&ssl_stats);
 
 #endif
+
+    #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
+        /* test re-use of wolfSSL session via wolfSSL_clear */
+        wolfSSL_clear(ssl);
+    #else
         SSL_free(ssl); ssl = NULL;
+    #endif
 
         CloseSocket(clientfd);
 
@@ -3735,6 +3743,8 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
             break;  /* out of while loop, done with normal and resume option */
         }
     } /* while(1) */
+
+    SSL_free(ssl); ssl = NULL;
 
     WOLFSSL_TIME(cnt);
     (void)cnt;

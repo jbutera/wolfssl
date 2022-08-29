@@ -4247,12 +4247,20 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     wolfSSL_PrintStatsConn(&ssl_stats);
 #endif
 
-    wolfSSL_free(ssl); ssl = NULL;
+    if (!resumeSession) {
+        wolfSSL_free(ssl); ssl = NULL;
+    }
     CloseSocket(sockfd);
 
 #ifndef NO_SESSION_CACHE
     if (resumeSession) {
+    #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
+        /* test re-use of wolfSSL session via wolfSSL_clear */
+        wolfSSL_clear(ssl);
+        sslResume = ssl;
+    #else
         sslResume = wolfSSL_new(ctx);
+    #endif
         if (sslResume == NULL) {
             wolfSSL_CTX_free(ctx); ctx = NULL;
             err_sys("unable to get SSL object");

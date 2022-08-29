@@ -59,6 +59,14 @@ int wc_ChaCha20Poly1305_Encrypt(
     int ret;
     ChaChaPoly_Aead aead;
 
+    printf("wc_ChaCha20Poly1305_Encrypt\n");
+#ifdef WOLFSSL_ASYNC_CRYPT
+    static int testAsync;
+    if ((testAsync++ % 2) == 0) {
+        return WC_PENDING_E;
+    }
+#endif
+
     /* Validate function arguments */
     if (!inKey || !inIV ||
         (inPlaintextLen > 0 && inPlaintext == NULL) ||
@@ -92,6 +100,14 @@ int wc_ChaCha20Poly1305_Decrypt(
     int ret;
     ChaChaPoly_Aead aead;
     byte calculatedAuthTag[CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE];
+
+    printf("wc_ChaCha20Poly1305_Decrypt\n");
+#ifdef WOLFSSL_ASYNC_CRYPT
+    static int testAsync;
+    if ((testAsync++ % 2) == 0) {
+        return WC_PENDING_E;
+    }
+#endif
 
     /* Validate function arguments */
     if (!inKey || !inIV ||
