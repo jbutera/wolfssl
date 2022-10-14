@@ -22267,34 +22267,54 @@ WOLFSSL_TEST_SUBROUTINE int hpke_test(void)
     const char* aad_text = "aad";
     byte ciphertext[MAX_HPKE_LABEL_SZ];
     byte plaintext[MAX_HPKE_LABEL_SZ];
+    void* receiverKey;
+    void* ephemeralKey;
     uint8_t pubKey[HPKE_Npk_MAX]; /* public key */
     word32 pubKeySz = (word32)sizeof(pubKey);
 
-    ret = wc_HpkeInit(hpke, DHKEM_P256_HKDF_SHA256, HKDF_SHA256,
+    //ret = wc_HpkeInit(hpke, DHKEM_P256_HKDF_SHA256, HKDF_SHA256,
+        //HPKE_AES_128_GCM, NULL); /* or HPKE_AES_256_GCM */
+    ret = wc_HpkeInit(hpke, DHKEM_X25519_HKDF_SHA256, HKDF_SHA256,
         HPKE_AES_128_GCM, NULL); /* or HPKE_AES_256_GCM */
-    if (ret != 0) {
-        return ret;
-    }
 
-    ret = wc_HpkeGenerateKeyPair(hpke, hpke->receiver_key);
-    if (ret == 0) {
-        ret = wc_HpkeSealBase(hpke,
+    if (ret != 0)
+      return ret;
+
+    /* generate the keys */
+    if (ret == 0)
+      ret = wc_HpkeGenerateKeyPair(hpke, &ephemeralKey);
+
+    if (ret == 0)
+      ret = wc_HpkeGenerateKeyPair(hpke, &receiverKey);
+
+    /* seal */
+    if (ret == 0)
+        ret = wc_HpkeSealBase(hpke, ephemeralKey, receiverKey,
             (byte*)info_text, (word32)XSTRLEN(info_text),
             (byte*)aad_text, (word32)XSTRLEN(aad_text),
             (byte*)start_text, (word32)XSTRLEN(start_text),
-            ciphertext, pubKey, &pubKeySz);
-    }
-    if (ret == 0) {
-        ret = wc_HpkeOpenBase(hpke, pubKey, pubKeySz,
+            ciphertext);
+
+    /* export ephemeral key */
+    if (ret == 0)
+        ret = wc_HpkeSerializePublicKey(hpke, ephemeralKey, pubKey, &pubKeySz);
+
+    /* open with exported ephemeral key */
+    if (ret == 0)
+        ret = wc_HpkeOpenBase(hpke, receiverKey, pubKey, pubKeySz,
             (byte*)info_text, (word32)XSTRLEN(info_text),
             (byte*)aad_text, (word32)XSTRLEN(aad_text),
             ciphertext, (word32)XSTRLEN(start_text),
             plaintext);
-    }
-    if (ret == 0) {
+
+    if (ret == 0)
         ret = XMEMCMP(plaintext, start_text, XSTRLEN(start_text));
-    }
-    wc_HpkeFree( hpke );
+
+    if (ephemeralKey != NULL)
+      wc_HpkeFreeKey(hpke, ephemeralKey);
+
+    if (receiverKey != NULL)
+      wc_HpkeFreeKey(hpke, receiverKey);
 
     return ret;
 }

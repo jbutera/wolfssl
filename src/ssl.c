@@ -197,6 +197,8 @@
     #endif /* !WOLFSSL_NO_OPENSSL_RAND_CB */
 #endif /* OPENSSL_EXTRA */
 
+#include <wolfssl/wolfcrypt/hpke.h>
+
 #if defined(OPENSSL_EXTRA) && defined(HAVE_ECC)
 const WOLF_EC_NIST_NAME kNistCurves[] = {
     {XSTR_SIZEOF("P-192"),   "P-192",   NID_X9_62_prime192v1},
@@ -254,6 +256,320 @@ const WOLF_EC_NIST_NAME kNistCurves[] = {
     {0, NULL, 0},
 };
 #endif
+
+int wolfSSL_set_ech_configs_64(WOLFSSL* ssl, char* ech_configs_64,
+  word32 ech_configs_64_len)
+{
+  int ret;
+  word32 decoded_len = ech_configs_64_len * 3 / 4 + 1;
+  byte* decoded_configs;
+
+  /* already have ech configs */
+  if (ssl->options.useEch == 1)
+  {
+    return -1;
+  }
+
+  decoded_configs = XMALLOC( decoded_len, ssl->heap, DYNAMIC_TYPE_NONE );
+  decoded_configs[decoded_len - 1] = 0;
+
+  /* decode the ech_configs */
+  ret = Base64_Decode((byte*)ech_configs_64, ech_configs_64_len,
+    decoded_configs, &decoded_len);
+
+  if (ret != 0)
+  {
+    XFREE(decoded_configs, ssl->heap, DYNAMIC_TYPE_NONE);
+    return ret;
+  }
+
+  ret = wolfSSL_set_ech_configs(ssl, decoded_configs, decoded_len);
+
+  XFREE(decoded_configs, ssl->heap, DYNAMIC_TYPE_NONE);
+
+  return ret;
+}
+
+int wolfSSL_set_ech_configs(WOLFSSL* ssl, const byte* ech_configs,
+  word32 ech_configs_len)
+{
+  int i;
+  int j;
+  word16 hpke_pubkey_len;
+  word16 cipher_suites_len;
+  word16 public_name_len;
+  EchConfig* config_list = NULL;
+  EchConfig* working_config = NULL;
+  byte* ech_config_p = NULL;
+
+  /* already have ech configs */
+  if (ssl->options.useEch == 1)
+  {
+    return -1;
+  }
+
+  /* check that the total length is well formed */
+  if (XNTOHS(((word16*)ech_configs)[0]) == ech_configs_len - 2)
+  {
+    /* skip the total length uint16_t */
+    i = 2;
+
+    do
+    {
+      ech_config_p = (byte*)ech_configs + i;
+
+      /* if the version does not match */
+      if (XNTOHS(*((word16*)(ech_config_p))) != 0xfe0d)
+      {
+        /* we hit the end of the configs */
+        if ( (word32)i + 2 >= ech_configs_len )
+        {
+          break;
+        }
+
+        /* skip this config, +4 for version and length */
+        i += XNTOHS(*((word16*)(ech_configs + i + 2))) + 4;
+        continue;
+      }
+
+      if (working_config == NULL)
+      {
+        working_config = XMALLOC(sizeof(EchConfig), ssl->heap,
+          DYNAMIC_TYPE_NONE);
+        config_list = working_config;
+        working_config->next = NULL;
+      }
+      else
+      {
+        working_config->next = XMALLOC(sizeof(EchConfig), ssl->heap,
+          DYNAMIC_TYPE_NONE);
+        working_config = working_config->next;
+      }
+
+      /* raw_len */
+      working_config->raw_len = XNTOHS(*((word16*)(ech_configs + i + 2))) + 4;
+
+      /* raw body */
+      working_config->raw = XMALLOC(working_config->raw_len, ssl->heap, DYNAMIC_TYPE_NONE);
+      XMEMCPY(working_config->raw, ech_config_p, working_config->raw_len);
+
+      /* skip over version and length */
+      ech_config_p += 4;
+
+      /* config_id, 1 byte */
+      working_config->config_id = *(ech_config_p);
+      ech_config_p++;
+      /* kem_id, 2 bytes */
+      working_config->kem_id = XNTOHS(*((word16*)ech_config_p));
+      ech_config_p += 2;
+      /* hpke public_key length, 2 bytes */
+      hpke_pubkey_len = XNTOHS(*((word16*)ech_config_p));
+      ech_config_p += 2;
+      /* hpke public_key */
+      XMEMCPY(working_config->receiver_pubkey, ech_config_p,
+        hpke_pubkey_len);
+      ech_config_p += hpke_pubkey_len;
+      /* cipher_suites_len */
+      cipher_suites_len = XNTOHS(*((word16*)ech_config_p));
+      working_config->cipher_suites = XMALLOC(cipher_suites_len,
+        ssl->heap, DYNAMIC_TYPE_NONE);
+      ech_config_p += 2;
+      working_config->num_cipher_suites = cipher_suites_len / 4;
+      /* cipher_suites */
+      for ( j = 0; j < working_config->num_cipher_suites; j++ )
+      {
+        working_config->cipher_suites[j].kdf_id =
+          XNTOHS(*((word16*)(ech_config_p + j * 4)));
+        working_config->cipher_suites[j].aead_id =
+          XNTOHS(*((word16*)(ech_config_p + j * 4 + 2)));
+      }
+      ech_config_p += cipher_suites_len;
+      /* public_name_len */
+      public_name_len = XNTOHS(*((word16*)ech_config_p));
+      working_config->public_name = XMALLOC(public_name_len + 1,
+        ssl->heap, DYNAMIC_TYPE_NONE);
+      ech_config_p += 2;
+      /* public_name */
+      XMEMCPY(working_config->public_name, ech_config_p, public_name_len);
+      /* null terminated */
+      working_config->public_name[public_name_len] = 0;
+
+      /* add length to go to next config, +4 for version and length */
+      i += XNTOHS(*((word16*)(ech_configs + i + 1))) + 4;
+    } while ( (word32)i < ech_configs_len );
+  }
+
+  // if we found valid configs
+  if ( config_list != NULL )
+  {
+    ssl->options.useEch = 1;
+    ssl->ech_configs = config_list;
+
+    return WOLFSSL_SUCCESS;
+  }
+
+  return -1;
+}
+
+
+int wolfSSL_get_ech_configs(WOLFSSL* ssl, byte* ech_configs,
+  word32* ech_configs_len)
+{
+  int i;
+  EchConfig* working_config = NULL;
+  byte* ech_config_start;
+  byte* ech_config_p = ech_configs + 2;
+  word16 total_size = 2;
+
+  /* if we don't have ech configs */
+  if (ssl->options.useEch != 1)
+  {
+    return -1;
+  }
+
+  working_config = ssl->ech_configs;
+
+  /* calculate length */
+  while (working_config != NULL)
+  {
+    /* 2 for version */
+    total_size += 2;
+    /* 2 for length */
+    total_size += 2;
+    /* 1 for config_id */
+    total_size += 1;
+    /* 2 for kem_id */
+    total_size += 2;
+    /* 2 for hpke_len */
+    total_size += 2;
+
+    /* hpke_pub_key */
+    switch (working_config->kem_id)
+    {
+      case DHKEM_P256_HKDF_SHA256:
+        total_size += 65;
+        break;
+      case DHKEM_P384_HKDF_SHA384:
+        total_size += 97;
+        break;
+      case DHKEM_P521_HKDF_SHA512:
+        total_size += 133;
+        break;
+      case DHKEM_X25519_HKDF_SHA256:
+        total_size += 32;
+        break;
+      case DHKEM_X448_HKDF_SHA512:
+        total_size += 56;
+        break;
+    }
+
+    /* cipher_suites_len */
+    total_size += 2;
+    /* cipher_suites */
+    total_size += working_config->num_cipher_suites * 4;
+    /* public name len */
+    total_size += 2;
+    /* public name */
+    total_size += XSTRLEN(working_config->public_name);
+    /* trailing zeros */
+    total_size += 2;
+
+    working_config = working_config->next;
+  }
+
+  if (total_size > *ech_configs_len)
+  {
+    return BUFFER_E;
+  }
+
+  /* now write */
+  /* total size -2 for size itself */
+  c16toa(total_size - 2, ech_configs);
+
+  working_config = ssl->ech_configs;
+
+  while (working_config != NULL)
+  {
+    ech_config_start = ech_config_p;
+
+    /* version */
+    c16toa(0xfe0d, ech_config_p);
+    ech_config_p += 4;
+    /* config_id */
+    *ech_config_p = working_config->config_id;
+    ech_config_p++;
+    /* kem_id */
+    c16toa(working_config->kem_id, ech_config_p);
+    ech_config_p += 2;
+
+    /* length and key itself */
+    switch (working_config->kem_id)
+    {
+      case DHKEM_P256_HKDF_SHA256:
+        c16toa(65, ech_config_p);
+        ech_config_p += 2;
+        XMEMCPY(ech_config_p, working_config->receiver_pubkey, 65);
+        ech_config_p += 65;
+        break;
+      case DHKEM_P384_HKDF_SHA384:
+        c16toa(97, ech_config_p);
+        ech_config_p += 2;
+        XMEMCPY(ech_config_p, working_config->receiver_pubkey, 97);
+        ech_config_p += 97;
+        break;
+      case DHKEM_P521_HKDF_SHA512:
+        c16toa(133, ech_config_p);
+        ech_config_p += 2;
+        XMEMCPY(ech_config_p, working_config->receiver_pubkey, 133);
+        ech_config_p += 133;
+        break;
+      case DHKEM_X25519_HKDF_SHA256:
+        c16toa(32, ech_config_p);
+        ech_config_p += 2;
+        XMEMCPY(ech_config_p, working_config->receiver_pubkey, 32);
+        ech_config_p += 32;
+        break;
+      case DHKEM_X448_HKDF_SHA512:
+        c16toa(56, ech_config_p);
+        ech_config_p += 2;
+        XMEMCPY(ech_config_p, working_config->receiver_pubkey, 56);
+        ech_config_p += 56;
+        break;
+    }
+
+    /* cipher_suites len */
+    c16toa(working_config->num_cipher_suites * 4, ech_config_p);
+    ech_config_p += 2;
+
+    /* cipher_suites */
+    for (i = 0; i < working_config->num_cipher_suites; i++)
+    {
+      c16toa(working_config->cipher_suites[i].kdf_id, ech_config_p);
+      ech_config_p += 2;
+      c16toa(working_config->cipher_suites[i].aead_id, ech_config_p);
+      ech_config_p += 2;
+    }
+
+    /* public_name len */
+    c16toa(XSTRLEN(working_config->public_name), ech_config_p);
+    ech_config_p += 2;
+
+    /* public_name */
+    XMEMCPY(ech_config_p, working_config->public_name, XSTRLEN(working_config->public_name));
+    ech_config_p += XSTRLEN(working_config->public_name);
+
+    /* terminating zeros */
+    c16toa(0, ech_config_p);
+    ech_config_p += 2;
+
+    /* length - 4 for version and length itself */
+    c16toa((word16)(ech_config_p - ech_config_start) - 4, ech_config_start + 2);
+
+    working_config = working_config->next;
+  }
+
+  return WOLFSSL_SUCCESS;
+}
 
 #if defined(WOLFSSL_RENESAS_TSIP_TLS) || defined(WOLFSSL_RENESAS_SCEPROTECT)
 #include <wolfssl/wolfcrypt/port/Renesas/renesas_cmn.h>

@@ -265,6 +265,8 @@
     #include <wolfssl/wolfcrypt/port/Renesas/renesas-tsip-crypt.h>
 #endif
 
+#include <wolfssl/wolfcrypt/hpke.h>
+
 #ifdef __cplusplus
     extern "C" {
 #endif
@@ -2532,6 +2534,7 @@ typedef enum {
 #ifdef WOLFSSL_QUIC
     TLSX_KEY_QUIC_TP_PARAMS_DRAFT   = 0xffa5, /* from draft-ietf-quic-tls-27 */
 #endif
+    TLSX_ECH                        = 0xfe0d,
 } TLSX_Type;
 
 typedef struct TLSX {
@@ -4175,6 +4178,7 @@ typedef struct Options {
 #ifdef WOLFSSL_DTLS_CID
     byte            useDtlsCID:1;
 #endif /* WOLFSSL_DTLS_CID */
+    byte            useEch:1;
 } Options;
 
 typedef struct Arrays {
@@ -4734,6 +4738,25 @@ typedef struct Dtls13Rtx {
 typedef struct CIDInfo CIDInfo;
 #endif /* WOLFSSL_DTLS_CID */
 
+typedef struct EchCipherSuite
+{
+    word16 kdf_id;
+    word16 aead_id;
+} EchCipherSuite;
+
+typedef struct EchConfig
+{
+    byte config_id;
+    word16 kem_id;
+    byte receiver_pubkey[HPKE_Npk_MAX];
+    byte num_cipher_suites;
+    EchCipherSuite* cipher_suites;
+    char* public_name;
+    struct EchConfig* next;
+    byte* raw;
+    word32 raw_len;
+} EchConfig;
+
 /* wolfSSL ssl type */
 struct WOLFSSL {
     WOLFSSL_CTX*    ctx;
@@ -5197,6 +5220,7 @@ struct WOLFSSL {
                                           * content have not been handled yet by quic */
     } quic;
 #endif /* WOLFSSL_QUIC */
+  EchConfig* ech_configs;
 };
 
 /*

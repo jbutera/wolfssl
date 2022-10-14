@@ -987,6 +987,15 @@ WOLFSSL_API WOLFSSL_METHOD *wolfSSLv23_method(void);
 
 #endif /* WOLFSSL_DTLS */
 
+WOLFSSL_API int wolfSSL_set_ech_configs_64(WOLFSSL* ssl, char* ech_configs_64,
+  word32 ech_configs_64_len);
+
+WOLFSSL_API int wolfSSL_set_ech_configs(WOLFSSL* ssl, const byte* ech_configs,
+  word32 ech_configs_len);
+
+WOLFSSL_API int wolfSSL_get_ech_configs(WOLFSSL* ssl, byte* ech_configs,
+  word32* ech_configs_len);
+
 #ifdef HAVE_POLY1305
     WOLFSSL_API int wolfSSL_use_old_poly(WOLFSSL* ssl, int value);
 #endif

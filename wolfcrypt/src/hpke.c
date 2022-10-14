@@ -29,6 +29,7 @@
 
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/ecc.h>
+#include <wolfssl/wolfcrypt/curve25519.h>
 #include <wolfssl/wolfcrypt/hmac.h>
 #include <wolfssl/wolfcrypt/hash.h>
 #include <wolfssl/wolfcrypt/sha256.h>
@@ -172,7 +173,6 @@ int wc_HpkeInit(Hpke* hpke, int kem, int kdf, int aead, void* heap)
             hpke->Npk = 1 + hpke->Ndh * 2;
             break;
 
-        /* TODO: Add X25519 and X448 */
         case DHKEM_X25519_HKDF_SHA256:
             hpke->Nsecret = WC_SHA256_DIGEST_SIZE;
             hpke->Nh = WC_SHA256_DIGEST_SIZE;
@@ -181,6 +181,7 @@ int wc_HpkeInit(Hpke* hpke, int kem, int kdf, int aead, void* heap)
             /* hpke->curve_id = ECC_X25519; */
             break;
 
+        /* TODO: Add X448 */
         case DHKEM_X448_HKDF_SHA512:
             hpke->Nsecret = WC_SHA512_DIGEST_SIZE;
             hpke->Nh = WC_SHA512_DIGEST_SIZE;
@@ -235,71 +236,7 @@ int wc_HpkeInit(Hpke* hpke, int kem, int kdf, int aead, void* heap)
     return 0;
 }
 
-int wc_HpkeSerializePublicKey(Hpke* hpke, ecc_key* key, byte* out,
-    word32* outSz)
-{
-    int ret;
-
-    if (key == NULL || out == NULL) {
-        return BAD_FUNC_ARG;
-    }
-
-    switch (hpke->kem)
-    {
-        case DHKEM_P256_HKDF_SHA256:
-        case DHKEM_P384_HKDF_SHA384:
-        case DHKEM_P521_HKDF_SHA512:
-            /* export x963 uncompressed */
-            ret = wc_ecc_export_x963_ex( key, out, outSz, 0 );
-            break;
-        case DHKEM_X25519_HKDF_SHA256:
-        case DHKEM_X448_HKDF_SHA512:
-        default:
-            ret = -1;
-            break;
-    }
-
-    return ret;
-}
-
-int wc_HpkeDeserializePublicKey(Hpke* hpke, ecc_key* key, const byte* in,
-    word32 inSz)
-{
-    int ret;
-
-    if (hpke == NULL || key == NULL || in == NULL) {
-        return BAD_FUNC_ARG;
-    }
-
-    if (inSz < (word32)hpke->Npk) {
-        return BUFFER_E;
-    }
-
-    switch (hpke->kem)
-    {
-        case DHKEM_P256_HKDF_SHA256:
-        case DHKEM_P384_HKDF_SHA384:
-        case DHKEM_P521_HKDF_SHA512:
-            /* init the ecc key */
-            ret = wc_ecc_init(key);
-
-            /* import the x963 key */
-            if (ret == 0) {
-                ret = wc_ecc_import_x963_ex(in, inSz, key, hpke->curve_id);
-            }
-
-            break;
-        case DHKEM_X25519_HKDF_SHA256:
-        case DHKEM_X448_HKDF_SHA512:
-        default:
-            ret = -1;
-            break;
-    }
-
-    return ret;
-}
-
-int wc_HpkeGenerateKeyPair(Hpke* hpke, ecc_key* keypair)
+int wc_HpkeGenerateKeyPair(Hpke* hpke, void** keypair)
 {
     int ret;
 #ifdef WOLFSSL_SMALL_STACK
@@ -321,34 +258,60 @@ int wc_HpkeGenerateKeyPair(Hpke* hpke, ecc_key* keypair)
 #endif
 
     ret = wc_InitRng(rng);
-    if (ret == 0) {
-        ret = wc_ecc_init(keypair);
-    }
 
     if (ret == 0) {
-        hpke->receiver_key_set = 1;
-
         switch (hpke->kem)
         {
             case DHKEM_P256_HKDF_SHA256:
-                ret = wc_ecc_make_key_ex(rng, 32, keypair, ECC_SECP256R1);
+                *keypair = wc_ecc_key_new(hpke->heap);
+
+                if (*keypair != NULL)
+                  ret = wc_ecc_make_key_ex(rng, 32, (ecc_key*)*keypair,
+                      ECC_SECP256R1);
                 break;
             case DHKEM_P384_HKDF_SHA384:
-                ret = wc_ecc_make_key_ex(rng, 48, keypair, ECC_SECP384R1);
+                *keypair = wc_ecc_key_new(hpke->heap);
+
+                if (*keypair != NULL)
+                  ret = wc_ecc_make_key_ex(rng, 48, (ecc_key*)*keypair,
+                      ECC_SECP384R1);
                 break;
             case DHKEM_P521_HKDF_SHA512:
-                ret = wc_ecc_make_key_ex(rng, 66, keypair, ECC_SECP521R1);
+                *keypair = wc_ecc_key_new(hpke->heap);
+
+                if (*keypair != NULL)
+                  ret = wc_ecc_make_key_ex(rng, 66, (ecc_key*)*keypair,
+                      ECC_SECP521R1);
                 break;
             case DHKEM_X25519_HKDF_SHA256:
-                /* TODO: Add X25519 */
+                *keypair = XMALLOC(sizeof(curve25519_key), hpke->heap,
+                    DYNAMIC_TYPE_CURVE25519);
+
+                if (*keypair != NULL)
+                {
+                  ret = wc_curve25519_init_ex((curve25519_key*)*keypair,
+                      hpke->heap, INVALID_DEVID);
+
+                  if (ret == 0)
+                    ret = wc_curve25519_make_key(rng, 32,
+                        (curve25519_key*)*keypair);
+                }
                 break;
             case DHKEM_X448_HKDF_SHA512:
                 /* TODO: Add X448 */
-                break;
             default:
                 ret = BAD_FUNC_ARG;
                 break;
         }
+    }
+
+    if (ret == 0 && *keypair == NULL)
+      ret = MEMORY_E;
+
+    if (ret != 0 && *keypair != NULL)
+    {
+      wc_HpkeFreeKey(hpke, *keypair);
+      *keypair = NULL;
     }
 
     wc_FreeRng(rng);
@@ -360,9 +323,116 @@ int wc_HpkeGenerateKeyPair(Hpke* hpke, ecc_key* keypair)
     return ret;
 }
 
-static int wc_HpkeLabeledExtract(Hpke* hpke, byte* suite_id, word32 suite_id_len,
-    byte* salt, word32 salt_len, byte* label, word32 label_len,
-    byte* ikm, word32 ikm_len, byte* out)
+int wc_HpkeSerializePublicKey(Hpke* hpke, void* key, byte* out, word32* outSz)
+{
+    int ret;
+
+    if (key == NULL || out == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    switch (hpke->kem)
+    {
+        case DHKEM_P256_HKDF_SHA256:
+        case DHKEM_P384_HKDF_SHA384:
+        case DHKEM_P521_HKDF_SHA512:
+            /* export x963 uncompressed */
+            ret = wc_ecc_export_x963_ex((ecc_key*)key, out, outSz, 0);
+            break;
+        case DHKEM_X25519_HKDF_SHA256:
+            ret = wc_curve25519_export_public_ex((curve25519_key*)key, out,
+                outSz, EC25519_LITTLE_ENDIAN);
+            break;
+        case DHKEM_X448_HKDF_SHA512:
+        default:
+            ret = -1;
+            break;
+    }
+
+    return ret;
+}
+
+int wc_HpkeDeserializePublicKey(Hpke* hpke, void** key, const byte* in, word32 inSz)
+{
+    int ret;
+
+    if (hpke == NULL || key == NULL || in == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (inSz < (word32)hpke->Npk) {
+        return BUFFER_E;
+    }
+
+    switch (hpke->kem)
+    {
+        case DHKEM_P256_HKDF_SHA256:
+        case DHKEM_P384_HKDF_SHA384:
+        case DHKEM_P521_HKDF_SHA512:
+            /* init the ecc key */
+            *key = wc_ecc_key_new(hpke->heap);
+
+            /* import the x963 key */
+            if (*key != NULL)
+                ret = wc_ecc_import_x963_ex(in, inSz, (ecc_key*)*key,
+                    hpke->curve_id);
+
+            break;
+        case DHKEM_X25519_HKDF_SHA256:
+            *key = XMALLOC(sizeof(curve25519_key), hpke->heap,
+                DYNAMIC_TYPE_CURVE25519);
+
+            if (*key != NULL)
+            {
+              ret = wc_curve25519_init_ex((curve25519_key*)*key, hpke->heap,
+                  INVALID_DEVID);
+
+              if (ret == 0)
+                ret = wc_curve25519_import_public_ex(in, inSz,
+                    (curve25519_key*)*key, EC25519_LITTLE_ENDIAN);
+            }
+            break;
+        case DHKEM_X448_HKDF_SHA512:
+        default:
+            ret = -1;
+            break;
+    }
+
+    if (ret == 0 && *key == NULL)
+      ret = MEMORY_E;
+
+    if (ret != 0 && *key != NULL)
+    {
+      wc_HpkeFreeKey(hpke, *key);
+      *key = NULL;
+    }
+
+    return ret;
+}
+
+void wc_HpkeFreeKey(Hpke* hpke, void* keypair)
+{
+    switch (hpke->kem)
+    {
+        case DHKEM_P256_HKDF_SHA256:
+        case DHKEM_P384_HKDF_SHA384:
+        case DHKEM_P521_HKDF_SHA512:
+            wc_ecc_key_free((ecc_key*)keypair);
+            break;
+        case DHKEM_X25519_HKDF_SHA256:
+            wc_curve25519_free((curve25519_key*)keypair);
+            XFREE(keypair, hpke->heap, DYNAMIC_TYPE_CURVE25519);
+            break;
+        case DHKEM_X448_HKDF_SHA512:
+            /* TODO: Add X448 */
+        default:
+            break;
+    }
+}
+
+static int wc_HpkeLabeledExtract(Hpke* hpke, byte* suite_id,
+    word32 suite_id_len, byte* salt, word32 salt_len, byte* label,
+    word32 label_len, byte* ikm, word32 ikm_len, byte* out)
 {
     int ret;
     byte* labeled_ikm_p;
@@ -471,7 +541,8 @@ static int wc_HpkeLabeledExpand(Hpke* hpke, byte* suite_id, word32 suite_id_len,
     return ret;
 }
 
-static int wc_HpkeContextComputeNonce(Hpke* hpke, HpkeBaseContext* context, byte* out)
+static int wc_HpkeContextComputeNonce(Hpke* hpke, HpkeBaseContext* context,
+    byte* out)
 {
     int i;
     int ret;
@@ -619,65 +690,73 @@ static int wc_HpkeKeyScheduleBase(Hpke* hpke, HpkeBaseContext* context,
     return ret;
 }
 
-static int wc_HpkeEncap(Hpke* hpke, byte* sharedSecret, byte* pubKey, word32* pubKeySz)
+static int wc_HpkeEncap(Hpke* hpke, void* ephemeralKey, void* receiverKey,
+    byte* sharedSecret)
 {
     int ret;
     word32 dh_len;
     word32 receiverPubKeySz = hpke->Npk;
+    word32 ephemeralPubKeySz = hpke->Npk;
 #ifndef WOLFSSL_SMALL_STACK
-    ecc_key ephemeralKey[1];
     byte dh[HPKE_Ndh_MAX];
     byte kemContext[HPKE_Npk_MAX * 2];
 #else
-    ecc_key* ephemeralKey = NULL;
     byte* dh = NULL;
     byte* kemContext = NULL;
 #endif
 
-    if (hpke == NULL) {
+    if (hpke == NULL || ephemeralKey == NULL || receiverKey == NULL ||
+        sharedSecret == NULL)
+    {
         return BAD_FUNC_ARG;
     }
 
 #ifdef WOLFSSL_SMALL_STACK
-    ephemeralKey = (ecc_key*)XMALLOC(sizeof(ecc_key), hpke->heap,
-        DYNAMIC_TYPE_ECC);
     dh = (byte*)XMALLOC(hpke->Ndh, hpke->heap, DYNAMIC_TYPE_TMP_BUFFER);
     kemContext = (byte*)XMALLOC(hpke->Npk * 2, hpke->heap,
         DYNAMIC_TYPE_TMP_BUFFER);
-    if (ephemeralKey == NULL || dh == NULL || kemContext == NULL) {
-        XFREE(ephemeralKey, hpke->heap, DYNAMIC_TYPE_ECC);
+    if (dh == NULL || kemContext == NULL) {
         XFREE(dh, hpke->heap, DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(kemContext, hpke->heap, DYNAMIC_TYPE_TMP_BUFFER);
         return MEMORY_E;
     }
 #endif
 
-    /* generate keypair */
-    ret = wc_HpkeGenerateKeyPair(hpke, ephemeralKey);
-    if (ret == 0) {
-        /* generate dh */
-        ephemeralKey->rng = wc_rng_new(NULL, 0, hpke->heap);
-        dh_len = hpke->Ndh;
-        ret = wc_ecc_shared_secret(ephemeralKey, hpke->receiver_key,
-            dh, &dh_len);
-        wc_rng_free(ephemeralKey->rng);
+    /* generate dh */
+    dh_len = hpke->Ndh;
 
-        /* serialize ephemeralKey */
-        if (ret == 0) {
-            ret = wc_HpkeSerializePublicKey(hpke, ephemeralKey, pubKey, pubKeySz);
-        }
+    switch (hpke->kem)
+    {
+        case DHKEM_P256_HKDF_SHA256:
+        case DHKEM_P384_HKDF_SHA384:
+        case DHKEM_P521_HKDF_SHA512:
+            ((ecc_key*)ephemeralKey)->rng = wc_rng_new(NULL, 0, hpke->heap);
 
-        /* free ephemeralKey */
-        wc_ecc_free(ephemeralKey);
+            ret = wc_ecc_shared_secret((ecc_key*)ephemeralKey,
+                (ecc_key*)receiverKey, dh, &dh_len);
+
+            wc_rng_free(((ecc_key*)ephemeralKey)->rng);
+            break;
+        case DHKEM_X25519_HKDF_SHA256:
+            ret = wc_curve25519_shared_secret_ex((curve25519_key*)ephemeralKey,
+                (curve25519_key*)receiverKey, dh, &dh_len,
+                EC25519_LITTLE_ENDIAN);
+            break;
+        case DHKEM_X448_HKDF_SHA512:
+            /* TODO: Add X448 */
+        default:
+            ret = -1;
+            break;
     }
 
     if (ret == 0) {
-        /* copy pubKey into kemContext */
-        XMEMCPY(kemContext, pubKey, hpke->Npk);
+        /* serialize ephemeralKey into kemContext */
+        ret = wc_HpkeSerializePublicKey(hpke, ephemeralKey,
+            kemContext, &ephemeralPubKeySz);
 
         /* serialize pkR into kemContext */
-        ret = wc_HpkeSerializePublicKey(hpke, hpke->receiver_key,
-            kemContext + hpke->Npk, &receiverPubKeySz);
+        ret = wc_HpkeSerializePublicKey(hpke, receiverKey,
+            kemContext + ephemeralPubKeySz, &receiverPubKeySz);
     }
 
     /* compute the shared secret */
@@ -687,7 +766,6 @@ static int wc_HpkeEncap(Hpke* hpke, byte* sharedSecret, byte* pubKey, word32* pu
     }
 
 #ifdef WOLFSSL_SMALL_STACK
-    XFREE(ephemeralKey, hpke->heap, DYNAMIC_TYPE_ECC);
     XFREE(dh, hpke->heap, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(kemContext, hpke->heap, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
@@ -696,7 +774,7 @@ static int wc_HpkeEncap(Hpke* hpke, byte* sharedSecret, byte* pubKey, word32* pu
 }
 
 static int wc_HpkeSetupBaseSender(Hpke* hpke, HpkeBaseContext* context,
-    byte* info, word32 infoSz, byte* pubKey, word32* pubKeySz)
+    void* ephemeralKey, void* receiverKey, byte* info, word32 infoSz)
 {
     int ret;
 #ifndef WOLFSSL_SMALL_STACK
@@ -715,7 +793,7 @@ static int wc_HpkeSetupBaseSender(Hpke* hpke, HpkeBaseContext* context,
 #endif
 
     /* encap */
-    ret = wc_HpkeEncap(hpke, sharedSecret, pubKey, pubKeySz);
+    ret = wc_HpkeEncap(hpke, ephemeralKey, receiverKey, sharedSecret);
 
     /* schedule */
     if (ret == 0) {
@@ -773,9 +851,9 @@ static int wc_HpkeContextSealBase(Hpke* hpke, HpkeBaseContext* context,
     return ret;
 }
 
-int wc_HpkeSealBase(Hpke* hpke, byte* info, word32 infoSz, byte* aad,
-    word32 aadSz, byte* plaintext, word32 ptSz, byte* ciphertext, byte* pubKey,
-    word32* pubKeySz)
+int wc_HpkeSealBase(Hpke* hpke, void* ephemeralKey, void* receiverKey,
+    byte* info, word32 infoSz, byte* aad, word32 aadSz, byte* plaintext,
+    word32 ptSz, byte* ciphertext)
 {
     int ret;
 #ifdef WOLFSSL_SMALL_STACK
@@ -785,7 +863,7 @@ int wc_HpkeSealBase(Hpke* hpke, byte* info, word32 infoSz, byte* aad,
 #endif
 
     /* check that all the buffers are non NULL or optional with 0 length */
-    if (hpke == NULL || hpke->receiver_key_set == 0 ||
+    if (hpke == NULL || ephemeralKey == NULL || receiverKey == NULL ||
         (info == NULL && infoSz != 0) || (aad == NULL && aadSz != 0) ||
         plaintext == NULL || ciphertext == NULL) {
         return BAD_FUNC_ARG;
@@ -800,13 +878,13 @@ int wc_HpkeSealBase(Hpke* hpke, byte* info, word32 infoSz, byte* aad,
 #endif
 
     /* setup the context and pubKey */
-    ret = wc_HpkeSetupBaseSender(hpke, context, info, infoSz, pubKey, pubKeySz);
+    ret = wc_HpkeSetupBaseSender(hpke, context, ephemeralKey, receiverKey, info,
+      infoSz);
 
     /* run seal using the context */
-    if (ret == 0) {
+    if (ret == 0)
         ret = wc_HpkeContextSealBase(hpke, context, aad, aadSz, plaintext,
             ptSz, ciphertext);
-        }
 
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(context, hpke->heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -815,34 +893,30 @@ int wc_HpkeSealBase(Hpke* hpke, byte* info, word32 infoSz, byte* aad,
     return ret;
 }
 
-static int wc_HpkeDecap(Hpke* hpke, const byte* pubKey, word32 pubKeySz,
+static int wc_HpkeDecap(Hpke* hpke, void* receiverKey, const byte* pubKey, word32 pubKeySz,
     byte* sharedSecret)
 {
     int ret;
     word32 dh_len;
     word32 receiverPubKeySz = hpke->Npk;
+    void* ephemeralKey = NULL;
 #ifndef WOLFSSL_SMALL_STACK
-    ecc_key ephemeralKey[1];
     byte dh[HPKE_Ndh_MAX];
     byte kemContext[HPKE_Npk_MAX * 2];
 #else
-    ecc_key* ephemeralKey = NULL;
     byte* dh = NULL;
     byte* kemContext = NULL;
 #endif
 
-    if (hpke == NULL) {
+    if (hpke == NULL || receiverKey == NULL) {
         return BAD_FUNC_ARG;
     }
 
 #ifdef WOLFSSL_SMALL_STACK
-    ephemeralKey = (ecc_key*)XMALLOC(sizeof(ecc_key), hpke->heap,
-        DYNAMIC_TYPE_ECC);
     dh = (byte*)XMALLOC(hpke->Ndh, hpke->heap, DYNAMIC_TYPE_TMP_BUFFER);
     kemContext = (byte*)XMALLOC(hpke->Npk * 2, hpke->heap,
         DYNAMIC_TYPE_TMP_BUFFER);
-    if (ephemeralKey == NULL || dh == NULL || kemContext == NULL) {
-        XFREE(ephemeralKey, hpke->heap, DYNAMIC_TYPE_ECC);
+    if (dh == NULL || kemContext == NULL) {
         XFREE(dh, hpke->heap, DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(kemContext, hpke->heap, DYNAMIC_TYPE_TMP_BUFFER);
         return MEMORY_E;
@@ -850,24 +924,45 @@ static int wc_HpkeDecap(Hpke* hpke, const byte* pubKey, word32 pubKeySz,
 #endif
 
     /* deserialize ephemeralKey from pubKey */
-    ret = wc_HpkeDeserializePublicKey(hpke, ephemeralKey, pubKey, pubKeySz);
-    if (ret == 0) {
-        /* generate dh */
-        hpke->receiver_key->rng = wc_rng_new(NULL, 0, hpke->heap);
-        dh_len = hpke->Ndh;
-        ret = wc_ecc_shared_secret(hpke->receiver_key, ephemeralKey,
-            dh, &dh_len);
-        wc_rng_free(hpke->receiver_key->rng);
+    ret = wc_HpkeDeserializePublicKey(hpke, &ephemeralKey, pubKey, pubKeySz);
 
-        wc_ecc_free(ephemeralKey);
-    }
+    /* generate dh */
+    dh_len = hpke->Ndh;
+
+    if (ret == 0)
+        switch (hpke->kem)
+        {
+            case DHKEM_P256_HKDF_SHA256:
+            case DHKEM_P384_HKDF_SHA384:
+            case DHKEM_P521_HKDF_SHA512:
+                ((ecc_key*)receiverKey)->rng = wc_rng_new(NULL, 0, hpke->heap);
+
+                ret = wc_ecc_shared_secret((ecc_key*)receiverKey,
+                    (ecc_key*)ephemeralKey, dh, &dh_len);
+
+                wc_rng_free(((ecc_key*)receiverKey)->rng);
+                break;
+            case DHKEM_X25519_HKDF_SHA256:
+                ret = wc_curve25519_shared_secret_ex(
+                    (curve25519_key*)receiverKey, (curve25519_key*)ephemeralKey,
+                    dh, &dh_len, EC25519_LITTLE_ENDIAN);
+                break;
+            case DHKEM_X448_HKDF_SHA512:
+                /* TODO: Add X448 */
+            default:
+                ret = -1;
+                break;
+        }
+
+    if (ephemeralKey != NULL)
+        wc_HpkeFreeKey(hpke, ephemeralKey);
 
     if (ret == 0) {
         /* copy pubKey into kemContext */
         XMEMCPY(kemContext, pubKey, hpke->Npk);
 
         /* serialize pkR into kemContext */
-        ret = wc_HpkeSerializePublicKey(hpke, hpke->receiver_key,
+        ret = wc_HpkeSerializePublicKey(hpke, receiverKey,
             kemContext + hpke->Npk, &receiverPubKeySz);
     }
 
@@ -878,7 +973,6 @@ static int wc_HpkeDecap(Hpke* hpke, const byte* pubKey, word32 pubKeySz,
     }
 
 #ifdef WOLFSSL_SMALL_STACK
-    XFREE(ephemeralKey, hpke->heap, DYNAMIC_TYPE_ECC);
     XFREE(dh, hpke->heap, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(kemContext, hpke->heap, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
@@ -887,7 +981,8 @@ static int wc_HpkeDecap(Hpke* hpke, const byte* pubKey, word32 pubKeySz,
 }
 
 static int wc_HpkeSetupBaseReceiver(Hpke* hpke, HpkeBaseContext* context,
-    const byte* pubKey, word32 pubKeySz, byte* info, word32 infoSz)
+    void* receiverKey, const byte* pubKey, word32 pubKeySz, byte* info,
+    word32 infoSz)
 {
     int ret;
 #ifndef WOLFSSL_SMALL_STACK
@@ -905,7 +1000,7 @@ static int wc_HpkeSetupBaseReceiver(Hpke* hpke, HpkeBaseContext* context,
 #endif
 
     /* decap */
-    ret = wc_HpkeDecap(hpke, pubKey, pubKeySz, sharedSecret);
+    ret = wc_HpkeDecap(hpke, receiverKey, pubKey, pubKeySz, sharedSecret);
 
     /* schedule */
     if (ret == 0) {
@@ -963,9 +1058,9 @@ static int wc_HpkeContextOpenBase(Hpke* hpke, HpkeBaseContext* context,
     return ret;
 }
 
-int wc_HpkeOpenBase(Hpke* hpke, const byte* pubKey, word32 pubKeySz,
-    byte* info, word32 infoSz, byte* aad, word32 aadSz, byte* ciphertext,
-    word32 ctSz, byte* plaintext)
+int wc_HpkeOpenBase(Hpke* hpke, void* receiverKey, const byte* pubKey,
+    word32 pubKeySz, byte* info, word32 infoSz, byte* aad, word32 aadSz,
+    byte* ciphertext, word32 ctSz, byte* plaintext)
 {
     int ret;
 #ifndef WOLFSSL_SMALL_STACK
@@ -975,7 +1070,7 @@ int wc_HpkeOpenBase(Hpke* hpke, const byte* pubKey, word32 pubKeySz,
 #endif
 
     /* check that all the buffer are non NULL or optional with 0 length */
-    if (hpke == NULL || pubKey == NULL || pubKeySz == 0 ||
+    if (hpke == NULL || receiverKey == NULL || pubKey == NULL || pubKeySz == 0 ||
         (info == NULL && infoSz != 0) || (aad == NULL && aadSz != 0) ||
         plaintext == NULL || ciphertext == NULL) {
         return BAD_FUNC_ARG;
@@ -990,7 +1085,7 @@ int wc_HpkeOpenBase(Hpke* hpke, const byte* pubKey, word32 pubKeySz,
 #endif
 
     /* setup receiver */
-    ret = wc_HpkeSetupBaseReceiver(hpke, context, pubKey, pubKeySz, info, infoSz);
+    ret = wc_HpkeSetupBaseReceiver(hpke, context, receiverKey, pubKey, pubKeySz, info, infoSz);
     if (ret == 0) {
         /* open the ciphertext */
         ret = wc_HpkeContextOpenBase(hpke, context, aad, aadSz, ciphertext,
@@ -1002,14 +1097,6 @@ int wc_HpkeOpenBase(Hpke* hpke, const byte* pubKey, word32 pubKeySz,
 #endif
 
     return ret;
-}
-
-void wc_HpkeFree(Hpke* hpke)
-{
-    if (hpke && hpke->receiver_key_set) {
-        wc_ecc_free(hpke->receiver_key);
-        hpke->receiver_key_set = 0;
-    }
 }
 
 #endif /* HAVE_HPKE && HAVE_ECC && HAVE_AESGCM */
