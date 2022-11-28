@@ -60,7 +60,7 @@
 
 /* only for stack size check */
 #if defined(WOLFSSL_ASYNC_CRYPT)
-    #ifndef WC_NO_ASYNC_THREADING
+    #if !defined(WC_NO_ASYNC_THREADING) && !defined(WC_NO_BENCH_THREADING)
         #define WC_ENABLE_BENCH_THREADING
     #endif
 #endif
@@ -1180,7 +1180,7 @@ static const char* bench_result_words2[][5] = {
         }
 
         if (asyncDone == 0) {
-        #ifndef WC_NO_ASYNC_THREADING
+        #ifdef WC_ENABLE_BENCH_THREADING
             /* give time to other threads */
             wc_AsyncThreadYield();
         #endif
@@ -1569,7 +1569,7 @@ typedef enum bench_stat_type {
 
 static WC_INLINE void bench_stats_init(void)
 {
-#if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_NO_ASYNC_THREADING)
+#ifdef WC_ENABLE_BENCH_THREADING
     bench_stats_head = NULL;
     bench_stats_tail = NULL;
 #endif
@@ -1897,7 +1897,7 @@ static void bench_stats_pq_asym_finish(const char* algo, int useDeviceID, int co
 
 static WC_INLINE void bench_stats_free(void)
 {
-#if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_NO_ASYNC_THREADING)
+#ifdef WC_ENABLE_BENCH_THREADING
     bench_stats_t* bstat;
     for (bstat = bench_stats_head; bstat != NULL; ) {
         bench_stats_t* next = bstat->next;
@@ -1918,7 +1918,7 @@ static void* benchmarks_do(void* args)
     int bench_buf_size;
 
 #ifdef WOLFSSL_ASYNC_CRYPT
-#ifndef WC_NO_ASYNC_THREADING
+#ifdef WC_ENABLE_BENCH_THREADING
     ThreadData* threadData = (ThreadData*)args;
 
     if (wolfAsync_DevOpenThread(&devId, &threadData->thread_id) < 0)
@@ -2826,7 +2826,7 @@ int benchmark_test(void *args)
     if (ret != 0)
         EXIT_TEST(ret);
 
-#if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_NO_ASYNC_THREADING)
+#ifdef WC_ENABLE_BENCH_THREADING
 {
     int i;
 

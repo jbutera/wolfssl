@@ -5029,7 +5029,7 @@ static int ecc_make_pub_ex(ecc_key* key, ecc_curve_spec* curveIn,
     #endif
     }
 
-#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC) && \
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC_KEYGEN) && \
     defined(HAVE_INTEL_QA)
     if (err == MP_OKAY && key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_ECC) {
         word32 keySz = key->dp->size;
