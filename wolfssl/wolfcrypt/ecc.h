@@ -835,7 +835,11 @@ enum ecEncAlgo {
     ecAES_128_CBC = 1,  /* default */
     ecAES_256_CBC = 2,
     ecAES_128_CTR = 3,
-    ecAES_256_CTR = 4
+    ecAES_256_CTR = 4,
+
+    /* No encryption (authentication and integrity only).
+     * Set using wc_ecc_ctx_set_algo before or after set_peer_salt */
+    ecNULL_CIPHER = 99
 };
 
 enum ecKdfAlgo {

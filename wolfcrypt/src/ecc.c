@@ -13191,6 +13191,13 @@ static int ecc_get_key_sizes(ecEncCtx* ctx, int* encKeySz, int* ivSz,
                 *blockSz  = 1;
                 break;
         #endif
+        #ifdef HAVE_NULL_CIPHER
+            case ecNULL_CIPHER:
+                *encKeySz = 0;
+                *ivSz     = 0;
+                *blockSz  = 0;
+                break;
+        #endif
             default:
                 return BAD_FUNC_ARG;
         }
@@ -13486,6 +13493,12 @@ int wc_ecc_encrypt_ex(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
         #endif
                 break;
             }
+        #ifdef HAVE_NULL_CIPHER
+            case ecNULL_CIPHER:
+                /* straight copy of the bytes */
+                XMEMCPY(out, msg, msgSz);
+                break;
+        #endif
             default:
                 ret = BAD_FUNC_ARG;
                 break;
@@ -13922,6 +13935,12 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
             #endif
                 break;
             }
+        #endif
+        #ifdef HAVE_NULL_CIPHER
+            case ecNULL_CIPHER:
+                /* straight copy of the bytes */
+                XMEMCPY(out, msg, msgSz);
+                break;
         #endif
             default:
                 ret = BAD_FUNC_ARG;
