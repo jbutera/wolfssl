@@ -110,6 +110,9 @@ extern "C" {
 #define WOLFSSL_CERT_REQ
 #define WOLFSSL_CERT_EXT
 
+#define WOLFSSL_KEY_GEN
+#define WOLFSSL_DER_TO_PEM
+
 #define HAVE_PKCS7
 #define HAVE_X963_KDF
 #define WOLFSSL_BASE64_ENCODE
