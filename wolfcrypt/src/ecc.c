@@ -3059,8 +3059,10 @@ static int ecc_mulmod(const mp_int* k, ecc_point* P, ecc_point* Q,
         err = MEMORY_E;
     }
 #endif
+#ifndef WC_NO_CACHE_RESISTANT
     if (err == MP_OKAY)
         err = mp_init(tmp);
+#endif
 
     /* Step 1: R[0] = P; R[1] = P */
     /* R[0] = P */

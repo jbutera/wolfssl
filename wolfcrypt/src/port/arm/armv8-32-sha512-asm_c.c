@@ -30,12 +30,13 @@
 #include <wolfssl/wolfcrypt/settings.h>
 
 #ifdef WOLFSSL_ARMASM
-#ifndef __aarch64__
+#if !defined(__aarch64__) && defined(__arm__)
 #include <stdint.h>
 #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif /* HAVE_CONFIG_H */
 #include <wolfssl/wolfcrypt/settings.h>
+#ifdef WOLFSSL_ARMASM_INLINE
 #ifdef WOLFSSL_SHA512
 #include <wolfssl/wolfcrypt/sha512.h>
 
@@ -9092,5 +9093,6 @@ void Transform_Sha512_Len(wc_Sha512* sha512_p, const byte* data_p, word32 len_p)
 
 #endif /* !WOLFSSL_ARMASM_NO_NEON */
 #endif /* WOLFSSL_SHA512 */
-#endif /* !__aarch64__ */
+#endif /* !__aarch64__ && !__thumb__ */
 #endif /* WOLFSSL_ARMASM */
+#endif /* WOLFSSL_ARMASM_INLINE */

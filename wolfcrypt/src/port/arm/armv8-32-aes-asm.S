@@ -30,7 +30,8 @@
 #include <wolfssl/wolfcrypt/settings.h>
 
 #ifdef WOLFSSL_ARMASM
-#ifndef __aarch64__
+#if !defined(__aarch64__) && defined(__arm__)
+#ifndef WOLFSSL_ARMASM_INLINE
 	.text
 	.type	L_AES_ARM32_te, %object
 	.size	L_AES_ARM32_te, 1024
@@ -3373,9 +3374,10 @@ L_AES_GCM_encrypt_end:
 	.size	AES_GCM_encrypt,.-AES_GCM_encrypt
 #endif /* HAVE_AESGCM */
 #endif /* !NO_AES */
-#endif /* !__aarch64__ */
+#endif /* !__aarch64__ && !__thumb__ */
 #endif /* WOLFSSL_ARMASM */
 
 #if defined(__linux__) && defined(__ELF__)
 .section	.note.GNU-stack,"",%progbits
 #endif
+#endif /* !WOLFSSL_ARMASM_INLINE */
