@@ -997,7 +997,8 @@ int z_fs_close(XFILE file)
 
 #endif /* !NO_FILESYSTEM && !WOLFSSL_ZEPHYR */
 
-#if !defined(WOLFSSL_USER_MUTEX)
+#if !defined(WOLFSSL_USER_MUTEX) && !defined(WOLFSSL_NO_MALLOC) && \
+    !defined(WOLFSSL_STATIC_MEMORY)
 wolfSSL_Mutex* wc_InitAndAllocMutex(void)
 {
     wolfSSL_Mutex* m = (wolfSSL_Mutex*) XMALLOC(sizeof(wolfSSL_Mutex), NULL,
