@@ -60,6 +60,22 @@
     #define SP_NOINLINE
 #endif
 
+/* support for relocating SP functions to a different section */
+#if !defined(SP_RAMFUNC) && defined(WOLFSSL_SP_RAMFUNC)
+    /* enable relocation of SP functions */
+    #ifdef __GNUC__
+        /* add *(.spcode) to .data section in linker script */
+        #ifdef __arm__
+            #define SP_RAMFUNC __attribute__((section(".spcode"),long_call))
+        #else
+            #define SP_RAMFUNC __attribute__((section(".spcode")))
+        #endif
+    #endif
+#endif
+#ifndef SP_RAMFUNC
+#define SP_RAMFUNC
+#endif
+
 
 #ifdef __cplusplus
     extern "C" {

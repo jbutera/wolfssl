@@ -105,6 +105,8 @@ This library provides single precision (SP) integer math functions.
  *                              Dynamic arrays used when not small stack.
  * WOLFSSL_SP_FAST_MODEXP       Allow fast mod_exp with small C code
  * WOLFSSL_SP_LOW_MEM           Use algorithms that use less memory.
+ * WOLFSSL_SP_RAMFUNC           Enable relocation of single precision (SP) math
+ *                              functions to .section RAM
  */
 
 /* TODO: WOLFSSL_SP_SMALL is incompatible with clang-12+ -Os. */
