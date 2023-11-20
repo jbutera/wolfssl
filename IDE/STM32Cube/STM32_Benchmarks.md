@@ -388,75 +388,70 @@ Board: NUCLEO-L4A6ZG
 CPU: Cortex-M4 at 80 MHz
 IDE: STM32CubeIDE
 RTOS: FreeRTOS
+Compiler: GCC with -Os
 
-### STM32L4A6Z (STM Crypto/Hash Acceleration, -Os, SP-ASM Cortex-M)
+### STM32L4A6Z (STM Crypto/Hash Acceleration, SP-ASM Cortex-M Small and ARM ASM Thumb speedups)
+
+Build options used:
+
+```c
+#define WOLFSSL_HAVE_SP_ECC
+#define WOLFSSL_SP_ARM_CORTEX_M_ASM
+#define WOLFSSL_SP_384
+#define WOLFSSL_SP_SMALL
+#define WOLFSSL_SP_NO_MALLOC
+
+#define WOLFSSL_ARMASM
+#define WOLFSSL_ARMASM_INLINE
+#define WOLFSSL_ARMASM_NO_HW_CRYPTO
+#define WOLFSSL_ARMASM_NO_NEON
+#define WOLFSSL_ARM_ARCH 7
+```
 
 ```
 ------------------------------------------------------------------------------
- wolfSSL version 4.4.1
+ wolfSSL version 5.6.4
 ------------------------------------------------------------------------------
-wolfCrypt Benchmark (block bytes 1024, min 1.0 sec each)
-RNG                250 KB took 1.083 seconds,  230.840 KB/s
-AES-128-CBC-enc      4 MB took 1.000 seconds,    4.175 MB/s
-AES-128-CBC-dec      3 MB took 1.000 seconds,    3.442 MB/s
-AES-256-CBC-enc      3 MB took 1.000 seconds,    3.247 MB/s
-AES-256-CBC-dec      3 MB took 1.008 seconds,    2.664 MB/s
-AES-128-GCM-enc      4 MB took 1.000 seconds,    3.589 MB/s
-AES-128-GCM-dec      4 MB took 1.004 seconds,    3.575 MB/s
-AES-256-GCM-enc      3 MB took 1.004 seconds,    2.869 MB/s
-AES-256-GCM-dec      3 MB took 1.000 seconds,    2.856 MB/s
-CHACHA               2 MB took 1.008 seconds,    2.010 MB/s
-CHA-POLY             1 MB took 1.004 seconds,    1.337 MB/s
-POLY1305             6 MB took 1.000 seconds,    6.030 MB/s
-SHA-256              4 MB took 1.004 seconds,    3.623 MB/s
-HMAC-SHA256          4 MB took 1.000 seconds,    3.540 MB/s
-RSA     2048 public         36 ops took 1.020 sec, avg 28.333 ms, 35.294 ops/sec
-RSA     2048 private         2 ops took 2.031 sec, avg 1015.500 ms, 0.985 ops/sec
-DH      2048 key gen         3 ops took 1.353 sec, avg 451.000 ms, 2.217 ops/sec
-DH      2048 agree           4 ops took 1.804 sec, avg 451.000 ms, 2.217 ops/sec
-ECC      256 key gen        33 ops took 1.011 sec, avg 30.636 ms, 32.641 ops/sec
-ECDHE    256 agree          16 ops took 1.078 sec, avg 67.375 ms, 14.842 ops/sec
-ECDSA    256 sign           24 ops took 1.012 sec, avg 42.167 ms, 23.715 ops/sec
-ECDSA    256 verify         12 ops took 1.165 sec, avg 97.083 ms, 10.300 ops/sec
-Benchmark complete
-Benchmark Test: Return code 0
-```
-
-### STM32L4A6Z (No HW Crypto, -Os, FastMath)
-
-```
-------------------------------------------------------------------------------
- wolfSSL version 4.4.1
-------------------------------------------------------------------------------
-wolfCrypt Benchmark (block bytes 1024, min 1.0 sec each)
-RNG                450 KB took 1.048 seconds,  429.389 KB/s
-AES-128-CBC-enc    625 KB took 1.008 seconds,  620.040 KB/s
-AES-128-CBC-dec    675 KB took 1.008 seconds,  669.643 KB/s
-AES-192-CBC-enc    550 KB took 1.023 seconds,  537.634 KB/s
-AES-192-CBC-dec    575 KB took 1.012 seconds,  568.182 KB/s
-AES-256-CBC-enc    475 KB took 1.004 seconds,  473.108 KB/s
-AES-256-CBC-dec    500 KB took 1.008 seconds,  496.032 KB/s
-AES-128-GCM-enc     50 KB took 1.440 seconds,   34.722 KB/s
-AES-128-GCM-dec     50 KB took 1.435 seconds,   34.843 KB/s
-AES-192-GCM-enc     50 KB took 1.466 seconds,   34.106 KB/s
-AES-192-GCM-dec     50 KB took 1.463 seconds,   34.176 KB/s
-AES-256-GCM-enc     50 KB took 1.482 seconds,   33.738 KB/s
-AES-256-GCM-dec     50 KB took 1.478 seconds,   33.829 KB/s
-CHACHA               2 MB took 1.008 seconds,    2.010 MB/s
-CHA-POLY             1 MB took 1.008 seconds,    1.332 MB/s
-POLY1305             6 MB took 1.000 seconds,    6.006 MB/s
-SHA-256              1 MB took 1.000 seconds,    1.123 MB/s
-HMAC-SHA256          1 MB took 1.008 seconds,    1.114 MB/s
-RSA     2048 public         16 ops took 1.028 sec, avg 64.250 ms, 15.564 ops/sec
-RSA     2048 private         2 ops took 7.491 sec, avg 3745.500 ms, 0.267 ops/sec
-DH      2048 key gen         2 ops took 1.440 sec, avg 720.000 ms, 1.389 ops/sec
-DH      2048 agree           2 ops took 2.882 sec, avg 1441.000 ms, 0.694 ops/sec
-ECC      256 key gen         2 ops took 1.918 sec, avg 959.000 ms, 1.043 ops/sec
-ECDHE    256 agree           2 ops took 1.914 sec, avg 957.000 ms, 1.045 ops/sec
-ECDSA    256 sign            2 ops took 1.941 sec, avg 970.500 ms, 1.030 ops/sec
-ECDSA    256 verify          2 ops took 1.294 sec, avg 647.000 ms, 1.546 ops/sec
-Benchmark complete
-Benchmark Test: Return code 0
+RNG                        225 KiB took 1.078 seconds,  208.720 KiB/s
+AES-128-CBC-enc              4 MiB took 1.000 seconds,    4.150 MiB/s
+AES-128-CBC-dec              3 MiB took 1.004 seconds,    3.234 MiB/s
+AES-256-CBC-enc              3 MiB took 1.000 seconds,    3.247 MiB/s
+AES-256-CBC-dec              3 MiB took 1.008 seconds,    2.543 MiB/s
+AES-128-GCM-enc              4 MiB took 1.000 seconds,    3.687 MiB/s
+AES-128-GCM-dec              4 MiB took 1.000 seconds,    3.638 MiB/s
+AES-256-GCM-enc              3 MiB took 1.000 seconds,    2.930 MiB/s
+AES-256-GCM-dec              3 MiB took 1.004 seconds,    2.894 MiB/s
+AES-128-GCM-enc-no_AAD       4 MiB took 1.000 seconds,    3.687 MiB/s
+AES-128-GCM-dec-no_AAD       4 MiB took 1.000 seconds,    3.662 MiB/s
+AES-256-GCM-enc-no_AAD       3 MiB took 1.003 seconds,    2.945 MiB/s
+AES-256-GCM-dec-no_AAD       3 MiB took 1.004 seconds,    2.918 MiB/s
+GMAC Table 4-bit           952 KiB took 1.000 seconds,  952.000 KiB/s
+CHACHA                       3 MiB took 1.004 seconds,    2.894 MiB/s
+CHA-POLY                     2 MiB took 1.004 seconds,    1.775 MiB/s
+POLY1305                     7 MiB took 1.000 seconds,    7.227 MiB/s
+SHA-256                      7 MiB took 1.000 seconds,    7.104 MiB/s
+SHA-512                    350 KiB took 1.036 seconds,  337.838 KiB/s
+SHA-512/224                350 KiB took 1.035 seconds,  338.164 KiB/s
+SHA-512/256                350 KiB took 1.035 seconds,  338.164 KiB/s
+HMAC-SHA256                  7 MiB took 1.000 seconds,    6.763 MiB/s
+HMAC-SHA512                350 KiB took 1.047 seconds,  334.288 KiB/s
+RSA     2048   public        36 ops took 1.008 sec, avg 28.000 ms, 35.714 ops/sec
+RSA     2048  private         2 ops took 2.016 sec, avg 1008.000 ms, 0.992 ops/sec
+DH      2048  key gen         3 ops took 1.416 sec, avg 472.000 ms, 2.119 ops/sec
+DH      2048    agree         4 ops took 1.890 sec, avg 472.500 ms, 2.116 ops/sec
+ECC   [      SECP256R1]   256  key gen        32 ops took 1.000 sec, avg 31.250 ms, 32.000 ops/sec
+ECDHE [      SECP256R1]   256    agree        16 ops took 1.101 sec, avg 68.812 ms, 14.532 ops/sec
+ECDSA [      SECP256R1]   256     sign        24 ops took 1.020 sec, avg 42.500 ms, 23.529 ops/sec
+ECDSA [      SECP256R1]   256   verify        12 ops took 1.133 sec, avg 94.417 ms, 10.591 ops/sec
+ECC   [      SECP384R1]   384  key gen        10 ops took 1.232 sec, avg 123.200 ms, 8.117 ops/sec
+ECDHE [      SECP384R1]   384    agree         4 ops took 1.063 sec, avg 265.750 ms, 3.763 ops/sec
+ECDSA [      SECP384R1]   384     sign         8 ops took 1.223 sec, avg 152.875 ms, 6.541 ops/sec
+ECDSA [      SECP384R1]   384   verify         4 ops took 1.388 sec, avg 347.000 ms, 2.882 ops/sec
+CURVE  25519  key gen        32 ops took 1.023 sec, avg 31.969 ms, 31.281 ops/sec
+CURVE  25519    agree        32 ops took 1.012 sec, avg 31.625 ms, 31.621 ops/sec
+ED     25519  key gen        80 ops took 1.008 sec, avg 12.600 ms, 79.365 ops/sec
+ED     25519     sign        64 ops took 1.027 sec, avg 16.047 ms, 62.317 ops/sec
+ED     25519   verify        28 ops took 1.024 sec, avg 36.571 ms, 27.344 ops/sec
 ```
 
 
