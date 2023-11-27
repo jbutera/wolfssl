@@ -72,12 +72,28 @@ int wc_AesSetKey(Aes* aes, const byte* key, word32 len, const byte* iv, int dir)
     if (!((dir == AES_ENCRYPTION) || (dir == AES_DECRYPTION)))
         return BAD_FUNC_ARG;
 
-    switch (len) {
-        case 16: aes->keylen = AES_CFG_KEY_SIZE_128BIT; break;
-        case 24: aes->keylen = AES_CFG_KEY_SIZE_192BIT; break;
-        case 32: aes->keylen = AES_CFG_KEY_SIZE_256BIT; break;
-    default: return BAD_FUNC_ARG;
+    switch(len) {
+#ifdef WOLFSSL_AES_128
+    case 16:
+        break;
+#endif
+#ifdef WOLFSSL_AES_192
+    case 24:
+        break;
+#endif
+#ifdef WOLFSSL_AES_256
+    case 32:
+        break;
+#endif
+    default:
+        return BAD_FUNC_ARG;
     }
+
+    // store the actual keylen instead of the AES_CFG register constant so that wc_AesGetKeySize works.
+    // whenever keylen is passed to a ROM_ function, we fixup the actual keylen back to the appropriate AES_CFG constant with keylen-8
+    // maybe wc_AesGetKeySize should just do the reverse mapping of AES_CFG constant -> actual keylen.. seems nice to see the real keylen in the struct tho
+    aes->keylen = len;
+    aes->rounds = len / 4 + 6;
 
     XMEMCPY(aes->key, key, len);
 #ifdef WOLFSSL_AES_COUNTER
@@ -92,10 +108,10 @@ static int AesAlign16(Aes* aes, byte* out, const byte* in, word32 sz,
     /* Processed aligned chunk to HW AES */
     wolfSSL_TI_lockCCM();
     ROM_AESReset(AES_BASE);
-    ROM_AESConfigSet(AES_BASE, (aes->keylen | dir |
+    ROM_AESConfigSet(AES_BASE, (aes->keylen-8 | dir |
         (mode == AES_CFG_MODE_CTR_NOCTR ? AES_CFG_MODE_CTR : mode)));
     ROM_AESIVSet(AES_BASE, (uint32_t *)aes->reg);
-    ROM_AESKey1Set(AES_BASE, (uint32_t *)aes->key, aes->keylen);
+    ROM_AESKey1Set(AES_BASE, (uint32_t *)aes->key, aes->keylen-8);
     if ((dir == AES_CFG_DIR_DECRYPT)&& (mode == AES_CFG_MODE_CBC)) {
         /* if input and output same will overwrite input iv */
         XMEMCPY(aes->tmp, in + sz - AES_BLOCK_SIZE, AES_BLOCK_SIZE);
@@ -341,7 +357,9 @@ static void AesAuthSetIv(Aes *aes, const byte *nonce, word32 len, word32 L,
     }
     else {
         byte *b = (byte *)aes->reg;
-        XMEMSET(aes->reg, 0, AES_BLOCK_SIZE);
+        if(len < 12) // prevent copying garbage (when nonce is NULL and len is 0)
+            XMEMSET(aes->reg+len, 0, AES_BLOCK_SIZE-len);
+        // FIXME still plenty of opportunity to do bad stuff here, like if nonceSz > 16
         XMEMCPY(aes->reg, nonce, len);
         b[AES_BLOCK_SIZE-4] = 0;
         b[AES_BLOCK_SIZE-3] = 0;
@@ -365,6 +383,7 @@ static int AesAuthEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
 
     ret = AesAuthArgCheck(aes, out, in, inSz, nonce, nonceSz, authTag,
         authTagSz, authIn, authInSz, &M, &L);
+    // if (ret == BAD_FUNC_ARG) { // orig version didn't fail when AesAuthArgCheck returns 1 (which it does when tagSz is 15)
     if (ret != 0) {
         return ret;
     }
@@ -415,11 +434,11 @@ static int AesAuthEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     /* do aes-ccm */
     AesAuthSetIv(aes, nonce, nonceSz, L, mode);
     ROM_AESReset(AES_BASE);
-    ROM_AESConfigSet(AES_BASE, (aes->keylen | AES_CFG_DIR_ENCRYPT |
+    ROM_AESConfigSet(AES_BASE, (aes->keylen-8 | AES_CFG_DIR_ENCRYPT |
                                 AES_CFG_CTR_WIDTH_128 |
                                 mode | ((mode== AES_CFG_MODE_CCM) ? (L | M) : 0 )));
     ROM_AESIVSet(AES_BASE, aes->reg);
-    ROM_AESKey1Set(AES_BASE, aes->key, aes->keylen);
+    ROM_AESKey1Set(AES_BASE, aes->key, aes->keylen-8);
     ret = ROM_AESDataProcessAuth(AES_BASE, (unsigned int*)in_a, (unsigned int *)out_a, inSz,
                            (unsigned int*)authIn_a, authInSz, (unsigned int *)tmpTag);
     if (ret == false) {
@@ -503,11 +522,11 @@ static int AesAuthDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     /* do aes-ccm */
     AesAuthSetIv(aes, nonce, nonceSz, L, mode);
     ROM_AESReset(AES_BASE);
-    ROM_AESConfigSet(AES_BASE, (aes->keylen | AES_CFG_DIR_DECRYPT |
+    ROM_AESConfigSet(AES_BASE, (aes->keylen-8 | AES_CFG_DIR_DECRYPT |
                                 AES_CFG_CTR_WIDTH_128 |
                                   mode | ((mode== AES_CFG_MODE_CCM) ? (L | M) : 0 )));
     ROM_AESIVSet(AES_BASE, aes->reg);
-    ROM_AESKey1Set(AES_BASE, aes->key, aes->keylen);
+    ROM_AESKey1Set(AES_BASE, aes->key, aes->keylen-8);
     ret = ROM_AESDataProcessAuth(AES_BASE, (unsigned int*)in_a, (unsigned int *)out_a, inSz,
                            (unsigned int*)authIn_a, authInSz, (unsigned int *)tmpTag);
     if ((ret == false) || (XMEMCMP(authTag, tmpTag, authTagSz) != 0)){

@@ -84,18 +84,18 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
     #include <wolfssl/wolfcrypt/port/psa/psa.h>
 #endif
 
-#if defined(WOLFSSL_TI_CRYPT)
-    #include <wolfcrypt/src/port/ti/ti-aes.c>
-#else
-
-#include <wolfssl/wolfcrypt/logging.h>
-
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
 #else
     #define WOLFSSL_MISC_INCLUDED
     #include <wolfcrypt/src/misc.c>
 #endif
+
+#if defined(WOLFSSL_TI_CRYPT)
+    #include <wolfcrypt/src/port/ti/ti-aes.c>
+#else
+
+#include <wolfssl/wolfcrypt/logging.h>
 
 #ifndef WOLFSSL_ARMASM
 
@@ -11074,6 +11074,198 @@ void wc_AesFree(Aes* aes)
 #endif
 }
 
+#endif /* !WOLFSSL_TI_CRYPT */
+
+#ifdef WOLFSSL_TI_CRYPT
+// !! FIXME !!
+// ALL of the functions within this #ifdef block are COPY-PASTED from above (from inside the #ifndef WOLFSSL_TI_CRYPT)
+// maybe these need to be special for TI_CRYPT, or some re-ordering of functions, or closer attention to platform-specific ifdefs
+
+static WARN_UNUSED_RESULT WC_INLINE int CheckAesGcmIvSize(int ivSz) {
+    return (ivSz == GCM_NONCE_MIN_SZ ||
+            ivSz == GCM_NONCE_MID_SZ ||
+            ivSz == GCM_NONCE_MAX_SZ);
+}
+
+#if (defined(HAVE_AESGCM) && !defined(WC_NO_RNG)) || defined(HAVE_AESCCM)
+static WC_INLINE void IncCtr(byte* ctr, word32 ctrSz)
+{
+    int i;
+    for (i = (int)ctrSz - 1; i >= 0; i--) {
+        if (++ctr[i])
+            break;
+    }
+}
+#endif /* HAVE_AESGCM || HAVE_AESCCM */
+
+
+
+int wc_AesGcmSetIV(Aes* aes, word32 ivSz,
+                   const byte* ivFixed, word32 ivFixedSz,
+                   WC_RNG* rng)
+{
+    int ret = 0;
+
+    if (aes == NULL || rng == NULL || !CheckAesGcmIvSize((int)ivSz) ||
+        (ivFixed == NULL && ivFixedSz != 0) ||
+        (ivFixed != NULL && ivFixedSz != AES_IV_FIXED_SZ)) {
+
+        ret = BAD_FUNC_ARG;
+    }
+
+    if (ret == 0) {
+        byte* iv = (byte*)aes->reg;
+
+        if (ivFixedSz)
+            XMEMCPY(iv, ivFixed, ivFixedSz);
+
+        ret = wc_RNG_GenerateBlock(rng, iv + ivFixedSz, ivSz - ivFixedSz);
+    }
+
+    if (ret == 0) {
+        /* If the IV is 96, allow for a 2^64 invocation counter.
+         * For any other size for the nonce, limit the invocation
+         * counter to 32-bits. (SP 800-38D 8.3) */
+        aes->invokeCtr[0] = 0;
+        aes->invokeCtr[1] = (ivSz == GCM_NONCE_MID_SZ) ? 0 : 0xFFFFFFFF;
+    #ifdef WOLFSSL_AESGCM_STREAM
+        aes->ctrSet = 1;
+    #endif
+        aes->nonceSz = ivSz;
+    }
+
+    return ret;
+}
+
+
+int wc_AesGcmEncrypt_ex(Aes* aes, byte* out, const byte* in, word32 sz,
+                        byte* ivOut, word32 ivOutSz,
+                        byte* authTag, word32 authTagSz,
+                        const byte* authIn, word32 authInSz)
+{
+    int ret = 0;
+
+    if (aes == NULL || (sz != 0 && (in == NULL || out == NULL)) ||
+        ivOut == NULL || ivOutSz != aes->nonceSz ||
+        (authIn == NULL && authInSz != 0)) {
+
+        ret = BAD_FUNC_ARG;
+    }
+
+    if (ret == 0) {
+        aes->invokeCtr[0]++;
+        if (aes->invokeCtr[0] == 0) {
+            aes->invokeCtr[1]++;
+            if (aes->invokeCtr[1] == 0)
+                ret = AES_GCM_OVERFLOW_E;
+        }
+    }
+
+    if (ret == 0) {
+        XMEMCPY(ivOut, aes->reg, ivOutSz);
+        ret = wc_AesGcmEncrypt(aes, out, in, sz,
+                               (byte*)aes->reg, ivOutSz,
+                               authTag, authTagSz,
+                               authIn, authInSz);
+        if (ret == 0)
+            IncCtr((byte*)aes->reg, ivOutSz);
+    }
+
+    return ret;
+}
+
+int wc_Gmac(const byte* key, word32 keySz, byte* iv, word32 ivSz,
+            const byte* authIn, word32 authInSz,
+            byte* authTag, word32 authTagSz, WC_RNG* rng)
+{
+#ifdef WOLFSSL_SMALL_STACK
+    Aes *aes = NULL;
+#else
+    Aes aes[1];
+#endif
+    int ret;
+
+    if (key == NULL || iv == NULL || (authIn == NULL && authInSz != 0) ||
+        authTag == NULL || authTagSz == 0 || rng == NULL) {
+
+        return BAD_FUNC_ARG;
+    }
+
+#ifdef WOLFSSL_SMALL_STACK
+    if ((aes = (Aes *)XMALLOC(sizeof *aes, NULL,
+                              DYNAMIC_TYPE_AES)) == NULL)
+        return MEMORY_E;
+#endif
+
+    ret = wc_AesInit(aes, NULL, INVALID_DEVID);
+    if (ret == 0) {
+        ret = wc_AesGcmSetKey(aes, key, keySz);
+        if (ret == 0)
+            ret = wc_AesGcmSetIV(aes, ivSz, NULL, 0, rng);
+        if (ret == 0)
+            ret = wc_AesGcmEncrypt_ex(aes, NULL, NULL, 0, iv, ivSz,
+                                  authTag, authTagSz, authIn, authInSz);
+        wc_AesFree(aes);
+    }
+    ForceZero(aes, sizeof *aes);
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(aes, NULL, DYNAMIC_TYPE_AES);
+#endif
+
+    return ret;
+}
+
+int wc_GmacVerify(const byte* key, word32 keySz,
+                  const byte* iv, word32 ivSz,
+                  const byte* authIn, word32 authInSz,
+                  const byte* authTag, word32 authTagSz)
+{
+    int ret;
+#ifdef HAVE_AES_DECRYPT
+#ifdef WOLFSSL_SMALL_STACK
+    Aes *aes = NULL;
+#else
+    Aes aes[1];
+#endif
+
+    if (key == NULL || iv == NULL || (authIn == NULL && authInSz != 0) ||
+        authTag == NULL || authTagSz == 0 || authTagSz > AES_BLOCK_SIZE) {
+
+        return BAD_FUNC_ARG;
+    }
+
+#ifdef WOLFSSL_SMALL_STACK
+    if ((aes = (Aes *)XMALLOC(sizeof *aes, NULL,
+                              DYNAMIC_TYPE_AES)) == NULL)
+        return MEMORY_E;
+#endif
+
+    ret = wc_AesInit(aes, NULL, INVALID_DEVID);
+    if (ret == 0) {
+        ret = wc_AesGcmSetKey(aes, key, keySz);
+        if (ret == 0)
+            ret = wc_AesGcmDecrypt(aes, NULL, NULL, 0, iv, ivSz,
+                                  authTag, authTagSz, authIn, authInSz);
+        wc_AesFree(aes);
+    }
+    ForceZero(aes, sizeof *aes);
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(aes, NULL, DYNAMIC_TYPE_AES);
+#endif
+#else
+    (void)key;
+    (void)keySz;
+    (void)iv;
+    (void)ivSz;
+    (void)authIn;
+    (void)authInSz;
+    (void)authTag;
+    (void)authTagSz;
+    ret = NOT_COMPILED_IN;
+#endif
+    return ret;
+}
+#endif /* WOLFSSL_TI_CRYPT */
 
 int wc_AesGetKeySize(Aes* aes, word32* keySize)
 {
@@ -11113,8 +11305,6 @@ int wc_AesGetKeySize(Aes* aes, word32* keySize)
 
     return ret;
 }
-
-#endif /* !WOLFSSL_TI_CRYPT */
 
 #ifdef HAVE_AES_ECB
 #if defined(WOLFSSL_IMX6_CAAM) && !defined(NO_IMX6_CAAM_AES) && \
