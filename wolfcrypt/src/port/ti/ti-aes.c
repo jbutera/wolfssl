@@ -67,7 +67,7 @@ int wc_AesSetKey(Aes* aes, const byte* key, word32 len, const byte* iv, int dir)
 {
     if (!wolfSSL_TI_CCMInit())
         return 1;
-    if ((aes == NULL) || (key == NULL) || (iv == NULL))
+    if ((aes == NULL) || (key == NULL))
         return BAD_FUNC_ARG;
     if (!((dir == AES_ENCRYPTION) || (dir == AES_DECRYPTION)))
         return BAD_FUNC_ARG;
