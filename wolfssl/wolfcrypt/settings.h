@@ -923,7 +923,7 @@ extern void uITRON4_free(void *p) ;
     #define NO_DEV_RANDOM
     #define NO_FILESYSTEM
     #define NO_SIG_WRAPPER
-    #define NO_MAIN_DRIVER
+//    #define NO_MAIN_DRIVER
     #define USE_CERT_BUFFERS_2048
     #define NO_ERROR_STRINGS
     /* Uncomment this setting if your toolchain does not offer time.h header */

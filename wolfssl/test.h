@@ -110,7 +110,7 @@
 #elif defined(WOLFSSL_TIRTOS)
     #include <string.h>
     #include <netdb.h>
-    #include <sys/types.h>
+//    #include <sys/types.h>
     #include <arpa/inet.h>
     #include <sys/socket.h>
     #include <ti/sysbios/knl/Task.h>
@@ -658,7 +658,7 @@ void signal_ready(tcp_ready* ready);
 
 /* wolfSSL */
 #ifndef TEST_IPV6
-    static const char* const wolfSSLIP   = "127.0.0.1";
+    static const char* const wolfSSLIP   = "10.1.0.77";
 #else
     static const char* const wolfSSLIP   = "::1";
 #endif

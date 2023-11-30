@@ -283,12 +283,12 @@ static int AesAuthArgCheck(Aes* aes, byte* out, const byte* in, word32 inSz,
     const byte* authIn, word32 authInSz, word32 *M, word32 *L)
 {
     (void) authInSz;
-    if ((aes == NULL)||(nonce == NULL)||(authTag== NULL)||(authIn == NULL))
+    if ((aes == NULL)||(nonce == NULL)||(authTag== NULL)||((authIn == NULL) && (authInSz != 0)))
         return BAD_FUNC_ARG;
     if ((inSz != 0) && ((out == NULL)||(in == NULL)))
         return BAD_FUNC_ARG;
 
-    switch(authTagSz){
+    switch(authInSz){
     case 4:
         *M = AES_CFG_CCM_M_4; break;
     case 6:
@@ -355,16 +355,45 @@ static void AesAuthSetIv(Aes *aes, const byte *nonce, word32 len, word32 L,
         }
         XMEMCPY(((byte *)aes->reg)+1, nonce, len);
     }
-    else {
-        byte *b = (byte *)aes->reg;
-        if(len < 12) // prevent copying garbage (when nonce is NULL and len is 0)
-            XMEMSET(aes->reg+len, 0, AES_BLOCK_SIZE-len);
-        // FIXME still plenty of opportunity to do bad stuff here, like if nonceSz > 16
-        XMEMCPY(aes->reg, nonce, len);
-        b[AES_BLOCK_SIZE-4] = 0;
-        b[AES_BLOCK_SIZE-3] = 0;
-        b[AES_BLOCK_SIZE-2] = 0;
-        b[AES_BLOCK_SIZE-1] = 1;
+    else
+    {
+        if(len == 12)
+        {
+            byte *b = (byte *)aes->reg ;
+            XMEMCPY(aes->reg, nonce, 12);
+            b[AES_BLOCK_SIZE-4] = 0 ;
+            b[AES_BLOCK_SIZE-3] = 0 ;
+            b[AES_BLOCK_SIZE-2] = 0 ;
+            b[AES_BLOCK_SIZE-1] = 1 ;
+        }
+        else
+        {
+            word32 zeros[4] = { 0, };
+            word32 subkey[4];
+            word32 i;
+
+            // get subkey
+            ROM_AESReset(AES_BASE);
+            ROM_AESConfigSet(AES_BASE, (aes->keylen-8) | AES_CFG_DIR_ENCRYPT | AES_CFG_MODE_ECB);
+            ROM_AESKey1Set(AES_BASE, aes->key, (aes->keylen-8));
+            ROM_AESDataProcess(AES_BASE, zeros, subkey, sizeof zeros);
+
+            // GHASH
+            ROM_AESReset(AES_BASE);
+            ROM_AESConfigSet(AES_BASE, AES_CFG_KEY_SIZE_128BIT | AES_CFG_MODE_GCM_HLY0ZERO);
+            ROM_AESKey2Set(AES_BASE, subkey, AES_CFG_KEY_SIZE_128BIT);
+
+            ROM_AESLengthSet(AES_BASE, len);
+            ROM_AESAuthLengthSet(AES_BASE, 0);
+
+            // copy nonce, which was already padded to 16 bytes
+            for(i = 0; i < len; i += 16)
+            {
+                ROM_AESDataWrite(AES_BASE, (word32*)(nonce + i));
+            }
+
+            ROM_AESTagRead(AES_BASE, aes->reg);
+        }
     }
 }
 
@@ -383,8 +412,8 @@ static int AesAuthEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
 
     ret = AesAuthArgCheck(aes, out, in, inSz, nonce, nonceSz, authTag,
         authTagSz, authIn, authInSz, &M, &L);
-    // if (ret == BAD_FUNC_ARG) { // orig version didn't fail when AesAuthArgCheck returns 1 (which it does when tagSz is 15)
-    if (ret != 0) {
+    if (ret == BAD_FUNC_ARG) { // orig version didn't fail when AesAuthArgCheck returns 1 (which it does when tagSz is 15)
+//    if (ret != 0) {
         return ret;
     }
 
@@ -432,7 +461,7 @@ static int AesAuthEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     }
 
     /* do aes-ccm */
-    AesAuthSetIv(aes, nonce, nonceSz, L, mode);
+    AesAuthSetIv(aes, nonce_a, nonceSz, L, mode);
     ROM_AESReset(AES_BASE);
     ROM_AESConfigSet(AES_BASE, (aes->keylen-8 | AES_CFG_DIR_ENCRYPT |
                                 AES_CFG_CTR_WIDTH_128 |
@@ -473,7 +502,7 @@ static int AesAuthDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
 
     ret = AesAuthArgCheck(aes, out, in, inSz, nonce, nonceSz, authTag,
         authTagSz, authIn, authInSz, &M, &L);
-    if (ret != 0) {
+    if (ret == BAD_FUNC_ARG) {
         return ret;
     }
 
@@ -520,7 +549,7 @@ static int AesAuthDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     }
 
     /* do aes-ccm */
-    AesAuthSetIv(aes, nonce, nonceSz, L, mode);
+    AesAuthSetIv(aes, nonce_a, nonceSz, L, mode);
     ROM_AESReset(AES_BASE);
     ROM_AESConfigSet(AES_BASE, (aes->keylen-8 | AES_CFG_DIR_DECRYPT |
                                 AES_CFG_CTR_WIDTH_128 |
